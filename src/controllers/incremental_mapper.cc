@@ -658,7 +658,7 @@ void IncrementalMapperController::Reconstruct (
         if(initial_reconstruction_given) {
             PrintHeading1("Reconstruction skipped");
         } else {
-            size_t segment_idx = 0;
+            size_t segment_idx = 4;
             while ( segment_idx < segment_image_names.size() ) {
                 PrintHeading1 (
                     StringPrintf ( "Reconstruct Segment %d (%d images)", segment_idx+1,

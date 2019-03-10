@@ -8,9 +8,30 @@ Build Type=Debug
 CMake Binary=/usr/bin/cmake
 CMake Executable=/usr/bin/cmake
 Environment Profile=
-Extra Arguments=
-Install Directory=
+Extra Arguments=-DCMAKE_C_COMPILER=gcc-6 -DCMAKE_CXX_COMPILER=g++-6
+Install Directory=/usr/local
 Runtime=Host System
+
+[Launch]
+Launch Configurations=Launch Configuration 0
+
+[Launch][Launch Configuration 0]
+Configured Launch Modes=execute
+Configured Launchers=nativeAppLauncher
+Name=localizer_server_starter
+Type=Native Application
+
+[Launch][Launch Configuration 0][Data]
+Arguments=
+Dependencies=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00\x04\x00\x00\x00\x0c\x00C\x00O\x00L\x00M\x00A\x00P\x00\x00\x00\x06\x00s\x00r\x00c\x00\x00\x00\x06\x00e\x00x\x00e\x00\x00\x000\x00l\x00o\x00c\x00a\x00l\x00i\x00z\x00e\x00r\x00_\x00s\x00e\x00r\x00v\x00e\x00r\x00_\x00s\x00t\x00a\x00r\x00t\x00e\x00r)
+Dependency Action=Build
+EnvironmentGroup=
+Executable=file:///home/haodong/KDevelop-Workspace/COLMAP
+External Terminal=konsole --noclose --workdir %workdir -e %exe
+Project Target=COLMAP,src,exe,localizer_server_starter
+Use External Terminal=false
+Working Directory=file:///home/haodong/COLMAP-Workspace
+isExecutable=false
 
 [Project]
 VersionControlSupport=kdevgit

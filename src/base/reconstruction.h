@@ -240,11 +240,14 @@ public:
     size_t FilterObservationsWithNegativeDepth();
 
     // Filter images without observations or bogus camera parameters.
+    // Or the principal is more than 5% off from the center.
     //
     // @return    The identifiers of the filtered images.
     std::vector<image_t> FilterImages(const double min_focal_length_ratio,
                                       const double max_focal_length_ratio,
-                                      const double max_extra_param);
+                                      const double max_extra_param,
+                                      const double min_principal_point_width_ratio = 0.05,
+                                      const double min_principal_point_height_ratio = 0.05);
 
     // Compute statistics for scene.
     size_t ComputeNumObservations() const;

@@ -81,6 +81,11 @@ class Camera {
   double PrincipalPointY() const;
   void SetPrincipalPointX(const double ppx);
   void SetPrincipalPointY(const double ppy);
+  
+  // Get the ratio of error between principal point and ideal center
+  // to the corresponding dimension.
+  double PrincipalPointXErrorRatio() const;
+  double PrincipalPointYErrorRatio() const;
 
   // Get the indices of the parameter groups in the parameter vector.
   const std::vector<size_t>& FocalLengthIdxs() const;
