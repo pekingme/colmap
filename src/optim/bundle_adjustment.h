@@ -81,7 +81,7 @@ struct BundleAdjustmentOptions {
     solver_options.max_linear_solver_iterations = 200;
     solver_options.max_num_consecutive_invalid_steps = 10;
     solver_options.max_consecutive_nonmonotonic_steps = 10;
-    solver_options.num_threads = -1;
+    solver_options.num_threads = 8;
 #if CERES_VERSION_MAJOR < 2
     solver_options.num_linear_solver_threads = -1;
 #endif  // CERES_VERSION_MAJOR

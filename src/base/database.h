@@ -70,6 +70,12 @@ class Database {
   // concurrently in multiple threads or processes.
   void Open(const std::string& path);
   void Close();
+  
+  // Combine with a new database: all content of new database are appended.
+  void Combine(const Database& database,
+               std::unordered_map<camera_t, camera_t>* camera_id_map,
+               std::unordered_map<image_t, image_t>* image_id_map,
+               std::unordered_map<image_pair_t, image_pair_t>* image_pair_id_map);
 
   // Check if entry already exists in database. For image pairs, the order of
   // `image_id1` and `image_id2` does not matter.
@@ -193,6 +199,13 @@ class Database {
   // Update an existing image in the database. The user is responsible for
   // making sure that the entry already exists.
   void UpdateImage(const Image& image) const;
+  
+  // Delete image based on image id. It seems keypoints and descriptors are 
+  // deleted automatically.
+  void DeleteImage(const image_t image_id) const;
+  
+  // Delete matches of an image pair based on image pair id.
+  void DeleteMatches(const image_pair_t pair_id) const;
 
   // Delete matches of an image pair.
   void DeleteMatches(const image_t image_id1, const image_t image_id2) const;
@@ -305,6 +318,7 @@ class Database {
   sqlite3_stmt* sql_stmt_write_two_view_geometry_ = nullptr;
 
   // delete_*
+  sqlite3_stmt* sql_stmt_delete_image_ = nullptr;
   sqlite3_stmt* sql_stmt_delete_matches_ = nullptr;
   sqlite3_stmt* sql_stmt_delete_two_view_geometry_ = nullptr;
 

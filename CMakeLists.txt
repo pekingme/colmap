@@ -106,6 +106,8 @@ find_package(Git)
 
 find_package(CGAL QUIET)
 
+find_package(cpprestsdk REQUIRED)
+
 set(CUDA_MIN_VERSION "7.0")
 if(CUDA_ENABLED)
     find_package(CUDA ${CUDA_MIN_VERSION} QUIET)
@@ -125,7 +127,6 @@ if(CGAL_FOUND)
     message(STATUS "  Includes : ${CGAL_INCLUDE_DIRS}")
     message(STATUS "  Libraries : ${CGAL_LIBRARY}")
 endif()
-
 
 ################################################################################
 # Compiler specific configuration
@@ -292,6 +293,10 @@ if(CGAL_ENABLED)
     list(APPEND COLMAP_LINK_DIRS ${CGAL_LIBRARIES_DIR})
 endif()
 
+if(cpprestsdk_FOUND)
+    list(APPEND COLMAP_EXTERNAL_LIBRARIES cpprestsdk::cpprest)
+endif()
+
 if(UNIX)
     list(APPEND COLMAP_EXTERNAL_LIBRARIES pthread)
 endif()
@@ -306,6 +311,7 @@ set(COLMAP_INTERNAL_LIBRARIES
     sqlite3
     sift_gpu
     vlfeat
+    azure_storage_lite
 )
 
 if(CUDA_ENABLED)
@@ -351,6 +357,7 @@ COLMAP_ADD_SOURCE_DIR(src/mvs MVS_SRCS *.h *.cc *.cu)
 COLMAP_ADD_SOURCE_DIR(src/optim OPTIM_SRCS *.h *.cc)
 COLMAP_ADD_SOURCE_DIR(src/retrieval RETRIEVAL_SRCS *.h *.cc)
 COLMAP_ADD_SOURCE_DIR(src/sfm SFM_SRCS *.h *.cc)
+COLMAP_ADD_SOURCE_DIR(src/server SERVER_SRCS *.h *.cc)
 COLMAP_ADD_SOURCE_DIR(src/tools TOOLS_SRCS *.h *.cc)
 COLMAP_ADD_SOURCE_DIR(src/ui UI_SRCS *.h *.cc)
 COLMAP_ADD_SOURCE_DIR(src/util UTIL_SRCS *.h *.cc)
@@ -377,6 +384,7 @@ add_library(
     ${OPTIM_SRCS}
     ${RETRIEVAL_SRCS}
     ${SFM_SRCS}
+    ${SERVER_SRCS}
     ${TOOLS_SRCS}
     ${UI_SRCS}
     ${UTIL_SRCS}

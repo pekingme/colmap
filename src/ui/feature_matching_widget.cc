@@ -170,6 +170,10 @@ SequentialMatchingTab::SequentialMatchingTab(QWidget* parent,
                                 "overlap");
   options_widget_->AddOptionBool(
       &options_->sequential_matching->quadratic_overlap, "quadratic_overlap");
+  options_widget_->AddOptionInt(
+      &options_->sequential_matching->cross_match_cameras, "cross_match_cameras");
+  options_widget_->AddOptionInt(
+      &options_->sequential_matching->existed_snapshots, "existed_snapshots");
   options_widget_->AddOptionBool(&options_->sequential_matching->loop_detection,
                                  "loop_detection");
   options_widget_->AddOptionInt(

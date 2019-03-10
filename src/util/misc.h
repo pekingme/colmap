@@ -93,7 +93,7 @@ std::vector<std::string> GetFileList(const std::string& path);
 // Return list of files, recursively in all sub-directories.
 std::vector<std::string> GetRecursiveFileList(const std::string& path);
 
-// Return list of directories, recursively in all sub-directories.
+// Return list of directories in a directorie.
 std::vector<std::string> GetDirList(const std::string& path);
 
 // Return list of directories, recursively in all sub-directories.
@@ -101,6 +101,16 @@ std::vector<std::string> GetRecursiveDirList(const std::string& path);
 
 // Get the size in bytes of a file.
 size_t GetFileSize(const std::string& path);
+
+// Remove all contents in a directory without removing itself.
+void RemoveDirContent(const std::string& path);
+
+// Copy contents in one directory to another.
+size_t CopyDir(const std::string& from_path, const std::string& to_path);
+
+// Copy contents in one directory to another, for recursive use.
+size_t CopyDirRecursive(const boost::filesystem::path& from_path, 
+                     const boost::filesystem::path& to_path);
 
 // Print first-order heading with over- and underscores to `std::cout`.
 void PrintHeading1(const std::string& heading);

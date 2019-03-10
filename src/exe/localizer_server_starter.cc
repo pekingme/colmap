@@ -1,4 +1,4 @@
-// Copyright (c) 2018, ETH Zurich and UNC Chapel Hill.
+// Copyright (c) 2019, Hao Dong.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,54 +27,66 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 //
-// Author: Johannes L. Schoenberger (jsch-at-demuc-dot-de)
+// Author: Hao Dong (haod at ecs umass edu)
 
-#ifndef COLMAP_SRC_UI_RECONSTRUCTION_OPTIONS_WIDGET_H_
-#define COLMAP_SRC_UI_RECONSTRUCTION_OPTIONS_WIDGET_H_
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 
-#include <QtCore>
-#include <QtWidgets>
+#include <iostream>
 
-#include "ui/options_widget.h"
+#include <QApplication>
+
+#include "server/cpprest_import.h"
+
 #include "util/option_manager.h"
+#include "util/misc.h"
+#include "base/reconstruction.h"
+#include "base/image_reader.h"
+#include "base/camera_models.h"
+#include "base/database_cache.h"
+#include "feature/extraction.h"
+#include "feature/matching.h"
+#include "controllers/incremental_mapper.h"
+#include "server/localizer_server.h"
 
-namespace colmap {
+using namespace colmap;
+using namespace utility;
+using namespace web;
 
-class MapperGeneralOptionsWidget : public OptionsWidget {
-public:
-    MapperGeneralOptionsWidget(QWidget* parent, OptionManager* options);
-};
-
-class MapperTriangulationOptionsWidget : public OptionsWidget {
-public:
-    MapperTriangulationOptionsWidget(QWidget* parent, OptionManager* options);
-};
-
-class MapperRegistrationOptionsWidget : public OptionsWidget {
-public:
-    MapperRegistrationOptionsWidget(QWidget* parent, OptionManager* options);
-};
-
-class MapperInitializationOptionsWidget : public OptionsWidget {
-public:
-    MapperInitializationOptionsWidget(QWidget* parent, OptionManager* options);
-};
-
-class MapperBundleAdjustmentOptionsWidget : public OptionsWidget {
-public:
-    MapperBundleAdjustmentOptionsWidget(QWidget* parent, OptionManager* options);
-};
-
-class MapperFilteringOptionsWidget : public OptionsWidget {
-public:
-    MapperFilteringOptionsWidget(QWidget* parent, OptionManager* options);
-};
-
-class ReconstructionOptionsWidget : public QWidget {
-public:
-    ReconstructionOptionsWidget(QWidget* parent, OptionManager* options);
-};
-
-}  // namespace colmap
-
-#endif  // COLMAP_SRC_UI_RECONSTRUCTION_OPTIONS_WIDGET_H_
+int main (int argc, char** argv) {
+    
+    // Initialize localizer with socket.
+    utility::string_t port = "34567";
+    if(argc == 2){
+        port = argv[1];
+    }
+    
+    utility::string_t address = "http://128.119.86.65:";
+    address.append(port);
+    
+    uri_builder uri(address);
+    uri.append_path("api");
+    
+    auto addr = uri.to_uri().to_string();
+    
+    // Initialize QApplication is OpenGL needed.
+    std::unique_ptr<QApplication> app;
+    if(kUseOpenGL) {
+        app.reset(new QApplication(argc, argv));
+    }
+    
+    std::unique_ptr<LocalizerServer> localizer_server (new LocalizerServer(addr));
+    localizer_server->open().wait();
+    
+    std::cout << utility::string_t("Listening for requests at: ") << addr << std::endl;
+    
+    std::cout << "Press ENTER to exit." << std::endl;
+    
+    std::string line;
+    std::getline(std::cin, line);
+    
+    localizer_server->close().wait();
+    
+    return EXIT_SUCCESS;
+}

@@ -151,6 +151,10 @@ class IncrementalMapper {
   // model is discarded, the number of total and shared registered images will
   // be updated accordingly.
   void EndReconstruction(const bool discard);
+  
+  // Copy camera objects from another reconstruction. Used in independent
+  // model merging, before the image registration across reconstructions.
+  void CopyCamerasFrom(const Reconstruction& reconstruction);
 
   // Find initial image pair to seed the incremental reconstruction. The image
   // pairs should be passed to `RegisterInitialImagePair`. This function

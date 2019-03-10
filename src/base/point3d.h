@@ -33,6 +33,7 @@
 #define COLMAP_SRC_BASE_POINT3D_H_
 
 #include <vector>
+#include <unordered_map>
 
 #include <Eigen/Core>
 
@@ -48,6 +49,9 @@ class Point3D {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   Point3D();
+  
+  // Update image id in track, due to the image id change.
+  void UpdateIndices(const std::unordered_map<image_t, image_t>& image_id_map);
 
   // The point coordinate in world space.
   inline const Eigen::Vector3d& XYZ() const;

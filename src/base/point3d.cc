@@ -35,4 +35,13 @@ namespace colmap {
 
 Point3D::Point3D() : xyz_(0.0, 0.0, 0.0), color_(0, 0, 0), error_(-1.0) {}
 
+void Point3D::UpdateIndices(const std::unordered_map<image_t, image_t>& image_id_map){
+    std::vector<TrackElement> new_track_elements;
+    for(auto& track_element : track_.Elements()){
+        const image_t new_image_id = image_id_map.at(track_element.image_id);
+        new_track_elements.emplace_back(new_image_id, track_element.point2D_idx);
+    }
+    track_.SetElements(new_track_elements);
+}
+
 }  // namespace colmap

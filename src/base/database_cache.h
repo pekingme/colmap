@@ -91,9 +91,9 @@ class DatabaseCache {
   void Load(const Database& database, const size_t min_num_matches,
             const bool ignore_watermarks,
             const std::set<std::string>& image_names);
-
-  // Find specific image by name. Note that this uses linear search.
-  const class Image* FindImageWithName(const std::string& name) const;
+  
+  // Unload everything.
+  void Unload(const bool cameras, const bool images, const bool correspondence_graph);
 
  private:
   class CorrespondenceGraph correspondence_graph_;

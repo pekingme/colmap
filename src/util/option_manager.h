@@ -44,6 +44,7 @@ struct ImageReaderOptions;
 struct SiftExtractionOptions;
 struct SiftMatchingOptions;
 struct ExhaustiveMatchingOptions;
+struct CrossGroupMatchingOptions;
 struct SequentialMatchingOptions;
 struct VocabTreeMatchingOptions;
 struct SpatialMatchingOptions;
@@ -61,7 +62,7 @@ struct DelaunayMeshingOptions;
 
 class OptionManager {
  public:
-  OptionManager(bool add_project_options = true);
+  OptionManager();
 
   // Create "optimal" set of options for different reconstruction scenarios.
   // Note that the existing options are modified, so if your parameters are
@@ -85,6 +86,7 @@ class OptionManager {
   void AddExtractionOptions();
   void AddMatchingOptions();
   void AddExhaustiveMatchingOptions();
+  void AddCrossGroupMatchingOptions();
   void AddSequentialMatchingOptions();
   void AddVocabTreeMatchingOptions();
   void AddSpatialMatchingOptions();
@@ -123,6 +125,7 @@ class OptionManager {
 
   std::shared_ptr<SiftMatchingOptions> sift_matching;
   std::shared_ptr<ExhaustiveMatchingOptions> exhaustive_matching;
+  std::shared_ptr<CrossGroupMatchingOptions> cross_group_matching;
   std::shared_ptr<SequentialMatchingOptions> sequential_matching;
   std::shared_ptr<VocabTreeMatchingOptions> vocab_tree_matching;
   std::shared_ptr<SpatialMatchingOptions> spatial_matching;
@@ -162,6 +165,7 @@ class OptionManager {
   bool added_extraction_options_;
   bool added_match_options_;
   bool added_exhaustive_match_options_;
+  bool added_cross_group_match_options_;
   bool added_sequential_match_options_;
   bool added_vocab_tree_match_options_;
   bool added_spatial_match_options_;

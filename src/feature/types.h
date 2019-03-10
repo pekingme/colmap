@@ -64,6 +64,9 @@ struct FeatureKeypoint {
   float ComputeScaleY() const;
   float ComputeOrientation() const;
   float ComputeShear() const;
+  
+  // Equality operator.
+  bool operator==(const FeatureKeypoint& keypoint) const;
 
   // Location of the feature, with the origin at the upper left image corner,
   // i.e. the upper left pixel has the coordinate (0.5, 0.5).
@@ -86,6 +89,9 @@ struct FeatureMatch {
   FeatureMatch(const point2D_t point2D_idx1, const point2D_t point2D_idx2)
       : point2D_idx1(point2D_idx1), point2D_idx2(point2D_idx2) {}
 
+    // Equality operator.
+    bool operator==(const FeatureMatch& match) const;
+      
   // Feature index in first image.
   point2D_t point2D_idx1 = kInvalidPoint2DIdx;
 

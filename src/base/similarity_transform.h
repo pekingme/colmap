@@ -33,6 +33,7 @@
 #define COLMAP_SRC_BASE_SIMILARITY_TRANSFORM_H_
 
 #include <vector>
+#include <unordered_set>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -87,7 +88,7 @@ bool ComputeAlignmentBetweenReconstructions(
     const Reconstruction& src_reconstruction,
     const Reconstruction& ref_reconstruction,
     const double min_inlier_observations, const double max_reproj_error,
-    Eigen::Matrix3x4d* alignment);
+    Eigen::Matrix3x4d* alignment, std::unordered_set<image_t>* outliners = nullptr);
 
 }  // namespace colmap
 

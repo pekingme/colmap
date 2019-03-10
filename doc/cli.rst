@@ -197,8 +197,6 @@ available as ``colmap [command]``:
 - ``automatic_reconstruction``: Automatically reconstruct sparse and dense model
   for a set of input images.
 
-- ``project_generator``: Generate project files at different quality settings.
-
 - ``feature_extractor``, ``feature_importer``: Perform feature extraction or
   import features for a set of images.
 
