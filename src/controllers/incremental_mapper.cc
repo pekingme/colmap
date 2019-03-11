@@ -976,7 +976,7 @@ void IncrementalMapperController::ReconstructSegment (
                 reconstruction.NumRegImages() < min_model_size ) ||
                 reconstruction.NumRegImages() == 0 ||
                 ( kSegmentReconstructionEnabled &&
-                  reconstruction.NumRegImages() < 0.8 * options_->segment_size ) ) {
+                  reconstruction.NumRegImages() < 0.6 * options_->segment_size ) ) {
             std::cout << "  => Current reconstruction model is too small. Deleting" << std::endl;
             mapper.EndReconstruction ( kDiscardReconstruction );
             reconstruction_manager_->Delete ( reconstruction_idx );
