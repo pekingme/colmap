@@ -227,6 +227,17 @@ bool Camera::HasBogusParams ( const double min_focal_length_ratio,
                                        max_extra_param );
 }
 
+bool Camera::HasBogusParams ( const double min_focal_length_ratio,
+                              const double max_focal_length_ratio,
+                              const double max_extra_param ) const
+{
+    return CameraModelHasBogusParams ( model_id_, params_, width_, height_,
+                                       min_focal_length_ratio,
+                                       max_focal_length_ratio,
+                                       0.5,
+                                       max_extra_param );
+}
+
 void Camera::InitializeWithId ( const int model_id, const double focal_length,
                                 const size_t width, const size_t height )
 {

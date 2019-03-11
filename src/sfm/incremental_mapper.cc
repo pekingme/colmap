@@ -418,7 +418,6 @@ bool IncrementalMapper::RegisterNextImage(const Options& options,
             // Avoid correspondences to images with bogus camera parameters.
             if (corr_camera.HasBogusParams(options.min_focal_length_ratio,
                                            options.max_focal_length_ratio,
-                                           options.max_principal_point_error_ratio,
                                            options.max_extra_param)) {
                 continue;
             }
@@ -468,7 +467,6 @@ bool IncrementalMapper::RegisterNextImage(const Options& options,
         // Camera already refined from another image with the same camera.
         if (camera.HasBogusParams(options.min_focal_length_ratio,
                                   options.max_focal_length_ratio,
-                                  options.max_principal_point_error_ratio,
                                   options.max_extra_param)) {
             // Previously refined camera has bogus parameters,
             // so reset parameters and try to re-refine.
