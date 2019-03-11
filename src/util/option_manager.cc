@@ -480,6 +480,8 @@ void OptionManager::AddMapperOptions() {
                                 &mapper->min_focal_length_ratio);
     AddAndRegisterDefaultOption("Mapper.max_focal_length_ratio",
                                 &mapper->max_focal_length_ratio);
+    AddAndRegisterDefaultOption("Mapper.max_principal_point_error_ratio", 
+                                &mapper->max_principal_point_error_ratio);
     AddAndRegisterDefaultOption("Mapper.max_extra_param",
                                 &mapper->max_extra_param);
     AddAndRegisterDefaultOption("Mapper.ba_refine_focal_length",

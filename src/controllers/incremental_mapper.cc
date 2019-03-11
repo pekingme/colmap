@@ -461,6 +461,7 @@ IncrementalMapper::Options IncrementalMapperOptions::Mapper() const
     options.abs_pose_refine_extra_params = ba_refine_extra_params;
     options.min_focal_length_ratio = min_focal_length_ratio;
     options.max_focal_length_ratio = max_focal_length_ratio;
+    options.max_principal_point_error_ratio = max_principal_point_error_ratio;
     options.max_extra_param = max_extra_param;
     options.num_threads = num_threads;
     options.local_ba_num_images = ba_local_num_images;
@@ -473,6 +474,7 @@ const
     IncrementalTriangulator::Options options = triangulation;
     options.min_focal_length_ratio = min_focal_length_ratio;
     options.max_focal_length_ratio = max_focal_length_ratio;
+    options.max_principal_point_error_ratio = max_principal_point_error_ratio;
     options.max_extra_param = max_extra_param;
     return options;
 }
@@ -658,7 +660,7 @@ void IncrementalMapperController::Reconstruct (
         if(initial_reconstruction_given) {
             PrintHeading1("Reconstruction skipped");
         } else {
-            size_t segment_idx = 4;
+            size_t segment_idx = 0;
             while ( segment_idx < segment_image_names.size() ) {
                 PrintHeading1 (
                     StringPrintf ( "Reconstruct Segment %d (%d images)", segment_idx+1,

@@ -217,11 +217,14 @@ bool Camera::VerifyParams() const
 
 bool Camera::HasBogusParams ( const double min_focal_length_ratio,
                               const double max_focal_length_ratio,
+                              const double max_principal_point_error_ratio,
                               const double max_extra_param ) const
 {
     return CameraModelHasBogusParams ( model_id_, params_, width_, height_,
                                        min_focal_length_ratio,
-                                       max_focal_length_ratio, max_extra_param );
+                                       max_focal_length_ratio,
+                                       max_principal_point_error_ratio,
+                                       max_extra_param );
 }
 
 void Camera::InitializeWithId ( const int model_id, const double focal_length,

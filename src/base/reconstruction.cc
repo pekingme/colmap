@@ -757,9 +757,8 @@ size_t Reconstruction::FilterObservationsWithNegativeDepth()
 
 std::vector<image_t> Reconstruction::FilterImages (
     const double min_focal_length_ratio, const double max_focal_length_ratio,
-    const double max_extra_param,
-    const double min_principal_point_width_ratio,
-    const double min_principal_point_height_ratio )
+    const double max_principal_point_error_ratio,
+    const double max_extra_param )
 {
     std::vector<image_t> filtered_image_ids;
     for ( const image_t image_id : RegImageIds() ) {
@@ -768,10 +767,9 @@ std::vector<image_t> Reconstruction::FilterImages (
         if ( image.NumPoints3D() == 0 ) {
             filtered_image_ids.push_back ( image_id );
         } else if ( camera.HasBogusParams ( min_focal_length_ratio,
-                                            max_focal_length_ratio, max_extra_param ) ) {
-            filtered_image_ids.push_back ( image_id );
-        } else if ( camera.PrincipalPointXErrorRatio() > min_principal_point_width_ratio ||
-                    camera.PrincipalPointYErrorRatio() > min_principal_point_height_ratio ) {
+                                            max_focal_length_ratio,
+                                            max_principal_point_error_ratio,
+                                            max_extra_param ) ) {
             filtered_image_ids.push_back ( image_id );
         }
     }

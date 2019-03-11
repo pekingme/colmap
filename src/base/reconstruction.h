@@ -47,7 +47,8 @@
 #include "util/alignment.h"
 #include "util/types.h"
 
-namespace colmap {
+namespace colmap
+{
 
 struct PlyPoint;
 struct RANSACOptions;
@@ -58,15 +59,16 @@ class SimilarityTransform3;
 // Reconstruction class holds all information about a single reconstructed
 // model. It is used by the mapping and bundle adjustment classes and can be
 // written to and read from disk.
-class Reconstruction {
+class Reconstruction
+{
 public:
     Reconstruction();
 
     // Update indices of camera. image, point3d tracks, and image pairs.
     // It should be called when try to merge independent models.
-    void UpdateIndices(const std::unordered_map<camera_t, camera_t>& camera_id_map,
-                       const std::unordered_map<image_t, image_t>& image_id_map,
-                       const std::unordered_map<image_pair_t, image_pair_t>& image_pair_id_map);
+    void UpdateIndices ( const std::unordered_map<camera_t, camera_t>& camera_id_map,
+                         const std::unordered_map<image_t, image_t>& image_id_map,
+                         const std::unordered_map<image_pair_t, image_pair_t>& image_pair_id_map );
 
     // Get number of objects.
     inline size_t NumCameras() const;
@@ -76,49 +78,49 @@ public:
     inline size_t NumImagePairs() const;
 
     // Get const objects.
-    inline const class Camera& Camera(const camera_t camera_id) const;
-    inline const class Image& Image(const image_t image_id) const;
-    inline const class Point3D& Point3D(const point3D_t point3D_id) const;
-    inline const std::pair<size_t, size_t>& ImagePair(
-        const image_pair_t pair_id) const;
-    inline std::pair<size_t, size_t>& ImagePair(const image_t image_id1,
-            const image_t image_id2);
+    inline const class Camera& Camera ( const camera_t camera_id ) const;
+    inline const class Image& Image ( const image_t image_id ) const;
+    inline const class Point3D& Point3D ( const point3D_t point3D_id ) const;
+    inline const std::pair<size_t, size_t>& ImagePair (
+        const image_pair_t pair_id ) const;
+    inline std::pair<size_t, size_t>& ImagePair ( const image_t image_id1,
+            const image_t image_id2 );
 
     // Get mutable objects.
-    inline class Camera& Camera(const camera_t camera_id);
-    inline class Image& Image(const image_t image_id);
-    inline class Point3D& Point3D(const point3D_t point3D_id);
-    inline std::pair<size_t, size_t>& ImagePair(const image_pair_t pair_id);
-    inline const std::pair<size_t, size_t>& ImagePair(
-        const image_t image_id1, const image_t image_id2) const;
+    inline class Camera& Camera ( const camera_t camera_id );
+    inline class Image& Image ( const image_t image_id );
+    inline class Point3D& Point3D ( const point3D_t point3D_id );
+    inline std::pair<size_t, size_t>& ImagePair ( const image_pair_t pair_id );
+    inline const std::pair<size_t, size_t>& ImagePair (
+        const image_t image_id1, const image_t image_id2 ) const;
 
     // Get reference to all objects.
-    inline const EIGEN_STL_UMAP(camera_t, class Camera) & Cameras() const;
-    inline const EIGEN_STL_UMAP(image_t, class Image) & Images() const;
+    inline const EIGEN_STL_UMAP ( camera_t, class Camera ) & Cameras() const;
+    inline const EIGEN_STL_UMAP ( image_t, class Image ) & Images() const;
     inline const std::vector<image_t>& RegImageIds() const;
-    inline const EIGEN_STL_UMAP(point3D_t, class Point3D) & Points3D() const;
+    inline const EIGEN_STL_UMAP ( point3D_t, class Point3D ) & Points3D() const;
     inline const std::unordered_map<image_pair_t, std::pair<size_t, size_t>>&
             ImagePairs() const;
 
     // Update objects.
-    inline void UpdateCamera(const camera_t camera_id, 
-                             const class Camera& camera);
+    inline void UpdateCamera ( const camera_t camera_id,
+                               const class Camera& camera );
 
     // Identifiers of all 3D points.
     std::unordered_set<point3D_t> Point3DIds() const;
 
     // Check whether specific object exists.
-    inline bool ExistsCamera(const camera_t camera_id) const;
-    inline bool ExistsImage(const image_t image_id) const;
-    inline bool ExistsPoint3D(const point3D_t point3D_id) const;
-    inline bool ExistsImagePair(const image_pair_t pair_id) const;
+    inline bool ExistsCamera ( const camera_t camera_id ) const;
+    inline bool ExistsImage ( const image_t image_id ) const;
+    inline bool ExistsPoint3D ( const point3D_t point3D_id ) const;
+    inline bool ExistsImagePair ( const image_pair_t pair_id ) const;
 
     // Load data from given `DatabaseCache`.
-    void Load(const DatabaseCache& database_cache);
+    void Load ( const DatabaseCache& database_cache );
 
     // Setup all relevant data structures before reconstruction. Note the
     // correspondence graph object must live until `TearDown` is called.
-    void SetUp(const CorrespondenceGraph* correspondence_graph);
+    void SetUp ( const CorrespondenceGraph* correspondence_graph );
 
     // Finalize the Reconstruction after the reconstruction has finished.
     //
@@ -130,41 +132,41 @@ public:
 
     // Add new camera. There is only one camera per image, while multiple images
     // might be taken by the same camera.
-    void AddCamera(const class Camera& camera);
+    void AddCamera ( const class Camera& camera );
 
     // Add new image.
-    void AddImage(const class Image& image);
+    void AddImage ( const class Image& image );
 
     // Add new 3D object, and return its unique ID.
-    point3D_t AddPoint3D(
+    point3D_t AddPoint3D (
         const Eigen::Vector3d& xyz, const Track& track,
-        const Eigen::Vector3ub& color = Eigen::Vector3ub::Zero());
+        const Eigen::Vector3ub& color = Eigen::Vector3ub::Zero() );
 
     // Add observation to existing 3D point.
-    void AddObservation(const point3D_t point3D_id, const TrackElement& track_el);
+    void AddObservation ( const point3D_t point3D_id, const TrackElement& track_el );
 
     // Merge two 3D points and return new identifier of new 3D point.
     // The location of the merged 3D point is a weighted average of the two
     // original 3D point's locations according to their track lengths.
-    point3D_t MergePoints3D(const point3D_t point3D_id1,
-                            const point3D_t point3D_id2);
+    point3D_t MergePoints3D ( const point3D_t point3D_id1,
+                              const point3D_t point3D_id2 );
 
     // Delete a 3D point, and all its references in the observed images.
-    void DeletePoint3D(const point3D_t point3D_id);
+    void DeletePoint3D ( const point3D_t point3D_id );
 
     // Delete one observation from an image and the corresponding 3D point.
     // Note that this deletes the entire 3D point, if the track has two elements
     // prior to calling this method.
-    void DeleteObservation(const image_t image_id, const point2D_t point2D_idx);
+    void DeleteObservation ( const image_t image_id, const point2D_t point2D_idx );
 
     // Register an existing image.
-    void RegisterImage(const image_t image_id);
+    void RegisterImage ( const image_t image_id );
 
     // De-register an existing image, and all its references.
-    void DeRegisterImage(const image_t image_id);
+    void DeRegisterImage ( const image_t image_id );
 
     // Check if image is registered.
-    inline bool IsImageRegistered(const image_t image_id) const;
+    inline bool IsImageRegistered ( const image_t image_id ) const;
 
     // Normalize scene by scaling and translation to avoid degenerate
     // visualization after bundle adjustment and to improve numerical
@@ -176,46 +178,46 @@ public:
     // Scales scene such that the minimum and maximum camera centers are at the
     // given `extent`, whereas `p0` and `p1` determine the minimum and
     // maximum percentiles of the camera centers considered.
-    void Normalize(const double extent = 10.0, const double p0 = 0.1,
-                   const double p1 = 0.9, const bool use_images = true);
+    void Normalize ( const double extent = 10.0, const double p0 = 0.1,
+                     const double p1 = 0.9, const bool use_images = true );
 
     // Apply the 3D similarity transformation to all images and points.
-    void Transform(const SimilarityTransform3& tform);
+    void Transform ( const SimilarityTransform3& tform );
 
     // Merge the given reconstruction into this reconstruction by registering the
-    // images registered in the given but not in this reconstruction (if 
-    // transform_outliners flag is true, the images as outliers of alignment 
-    // estimation are also transformed) and by merging the two clouds and their 
+    // images registered in the given but not in this reconstruction (if
+    // transform_outliners flag is true, the images as outliers of alignment
+    // estimation are also transformed) and by merging the two clouds and their
     // tracks. The coordinate frames of the two reconstructions are aligned using
-    // the projection centers of common registered images. Return true if the two 
+    // the projection centers of common registered images. Return true if the two
     // reconstructions could be merged.
-    bool Merge(const Reconstruction& reconstruction,
-               const double max_reproj_error, 
-               const bool transform_outliers = false);
+    bool Merge ( const Reconstruction& reconstruction,
+                 const double max_reproj_error,
+                 const bool transform_outliers = false );
 
     // Align the given reconstruction with a set of pre-defined camera positions.
     // Assuming that locations[i] gives the 3D coordinates of the center
     // of projection of the image with name image_names[i].
-    bool Align(const std::vector<std::string>& image_names,
-               const std::vector<Eigen::Vector3d>& locations,
-               const int min_common_images);
+    bool Align ( const std::vector<std::string>& image_names,
+                 const std::vector<Eigen::Vector3d>& locations,
+                 const int min_common_images );
 
     // Robust alignment using RANSAC.
-    bool AlignRobust(const std::vector<std::string>& image_names,
-                     const std::vector<Eigen::Vector3d>& locations,
-                     const int min_common_images,
-                     const RANSACOptions& ransac_options);
+    bool AlignRobust ( const std::vector<std::string>& image_names,
+                       const std::vector<Eigen::Vector3d>& locations,
+                       const int min_common_images,
+                       const RANSACOptions& ransac_options );
 
     // Find image with name.
     //
     // @param name        Name of the image.
     //
     // @return            Nullptr if image was not found.
-    const class Image* FindImageWithName(const std::string& name) const;
+    const class Image* FindImageWithName ( const std::string& name ) const;
 
     // Find images that are both present in this and the given reconstruction.
-    std::vector<image_t> FindCommonRegImageIds(
-        const Reconstruction& reconstruction) const;
+    std::vector<image_t> FindCommonRegImageIds (
+        const Reconstruction& reconstruction ) const;
 
     // Filter 3D points with large reprojection error, negative depth, or
     // insufficient triangulation angle.
@@ -225,14 +227,14 @@ public:
     // @param point3D_ids         The points to be filtered.
     //
     // @return                    The number of filtered observations.
-    size_t FilterPoints3D(const double max_reproj_error,
-                          const double min_tri_angle,
-                          const std::unordered_set<point3D_t>& point3D_ids);
-    size_t FilterPoints3DInImages(const double max_reproj_error,
-                                  const double min_tri_angle,
-                                  const std::unordered_set<image_t>& image_ids);
-    size_t FilterAllPoints3D(const double max_reproj_error,
-                             const double min_tri_angle);
+    size_t FilterPoints3D ( const double max_reproj_error,
+                            const double min_tri_angle,
+                            const std::unordered_set<point3D_t>& point3D_ids );
+    size_t FilterPoints3DInImages ( const double max_reproj_error,
+                                    const double min_tri_angle,
+                                    const std::unordered_set<image_t>& image_ids );
+    size_t FilterAllPoints3D ( const double max_reproj_error,
+                               const double min_tri_angle );
 
     // Filter observations that have negative depth.
     //
@@ -243,11 +245,10 @@ public:
     // Or the principal is more than 5% off from the center.
     //
     // @return    The identifiers of the filtered images.
-    std::vector<image_t> FilterImages(const double min_focal_length_ratio,
-                                      const double max_focal_length_ratio,
-                                      const double max_extra_param,
-                                      const double min_principal_point_width_ratio = 0.05,
-                                      const double min_principal_point_height_ratio = 0.05);
+    std::vector<image_t> FilterImages ( const double min_focal_length_ratio,
+                                        const double max_focal_length_ratio,
+                                        const double max_principal_point_error_ratio,
+                                        const double max_extra_param );
 
     // Compute statistics for scene.
     size_t ComputeNumObservations() const;
@@ -256,32 +257,32 @@ public:
     double ComputeMeanReprojectionError() const;
 
     // Read data from text or binary file. Prefer binary data if it exists.
-    void Read(const std::string& path);
-    void Write(const std::string& path) const;
+    void Read ( const std::string& path );
+    void Write ( const std::string& path ) const;
 
     // Read data from binary/text file.
-    void ReadText(const std::string& path);
-    void ReadBinary(const std::string& path);
+    void ReadText ( const std::string& path );
+    void ReadBinary ( const std::string& path );
 
     // Write data from binary/text file.
-    void WriteText(const std::string& path) const;
-    void WriteBinary(const std::string& path) const;
+    void WriteText ( const std::string& path ) const;
+    void WriteBinary ( const std::string& path ) const;
 
     // Convert 3D points in reconstruction to PLY point cloud.
     std::vector<PlyPoint> ConvertToPLY() const;
 
     // Import from other data formats. Note that these import functions are
     // only intended for visualization of data and usable for reconstruction.
-    void ImportPLY(const std::string& path);
+    void ImportPLY ( const std::string& path );
 
     // Export to other data formats.
-    bool ExportNVM(const std::string& path) const;
-    bool ExportBundler(const std::string& path,
-                       const std::string& list_path) const;
-    void ExportPLY(const std::string& path) const;
-    void ExportVRML(const std::string& images_path,
-                    const std::string& points3D_path, const double image_scale,
-                    const Eigen::Vector3d& image_rgb) const;
+    bool ExportNVM ( const std::string& path ) const;
+    bool ExportBundler ( const std::string& path,
+                         const std::string& list_path ) const;
+    void ExportPLY ( const std::string& path ) const;
+    void ExportVRML ( const std::string& images_path,
+                      const std::string& points3D_path, const double image_scale,
+                      const Eigen::Vector3d& image_rgb ) const;
 
     // Extract colors for 3D points of given image. Colors will be extracted
     // only for 3D points which are completely black.
@@ -292,51 +293,51 @@ public:
     //                      root path and the name of the image.
     //
     // @return              True if image could be read at given path.
-    bool ExtractColorsForImage(const image_t image_id, const std::string& path);
+    bool ExtractColorsForImage ( const image_t image_id, const std::string& path );
 
     // Extract colors for all 3D points by computing the mean color of all images.
     //
     // @param path          Absolute or relative path to root folder of image.
     //                      The image path is determined by concatenating the
     //                      root path and the name of the image.
-    void ExtractColorsForAllImages(const std::string& path);
+    void ExtractColorsForAllImages ( const std::string& path );
 
     // Create all image sub-directories in the given path.
-    void CreateImageDirs(const std::string& path) const;
+    void CreateImageDirs ( const std::string& path ) const;
 
 private:
-    size_t FilterPoints3DWithSmallTriangulationAngle(
+    size_t FilterPoints3DWithSmallTriangulationAngle (
         const double min_tri_angle,
-        const std::unordered_set<point3D_t>& point3D_ids);
-    size_t FilterPoints3DWithLargeReprojectionError(
+        const std::unordered_set<point3D_t>& point3D_ids );
+    size_t FilterPoints3DWithLargeReprojectionError (
         const double max_reproj_error,
-        const std::unordered_set<point3D_t>& point3D_ids);
+        const std::unordered_set<point3D_t>& point3D_ids );
 
-    void ReadCamerasText(const std::string& path);
-    void ReadImagesText(const std::string& path);
-    void ReadPoints3DText(const std::string& path);
-    void ReadCamerasBinary(const std::string& path);
-    void ReadImagesBinary(const std::string& path);
-    void ReadPoints3DBinary(const std::string& path);
+    void ReadCamerasText ( const std::string& path );
+    void ReadImagesText ( const std::string& path );
+    void ReadPoints3DText ( const std::string& path );
+    void ReadCamerasBinary ( const std::string& path );
+    void ReadImagesBinary ( const std::string& path );
+    void ReadPoints3DBinary ( const std::string& path );
 
-    void WriteCamerasText(const std::string& path) const;
-    void WriteImagesText(const std::string& path) const;
-    void WritePoints3DText(const std::string& path) const;
-    void WriteCamerasBinary(const std::string& path) const;
-    void WriteImagesBinary(const std::string& path) const;
-    void WritePoints3DBinary(const std::string& path) const;
+    void WriteCamerasText ( const std::string& path ) const;
+    void WriteImagesText ( const std::string& path ) const;
+    void WritePoints3DText ( const std::string& path ) const;
+    void WriteCamerasBinary ( const std::string& path ) const;
+    void WriteImagesBinary ( const std::string& path ) const;
+    void WritePoints3DBinary ( const std::string& path ) const;
 
-    void SetObservationAsTriangulated(const image_t image_id,
-                                      const point2D_t point2D_idx,
-                                      const bool is_continued_point3D);
-    void ResetTriObservations(const image_t image_id, const point2D_t point2D_idx,
-                              const bool is_deleted_point3D);
+    void SetObservationAsTriangulated ( const image_t image_id,
+                                        const point2D_t point2D_idx,
+                                        const bool is_continued_point3D );
+    void ResetTriObservations ( const image_t image_id, const point2D_t point2D_idx,
+                                const bool is_deleted_point3D );
 
     const CorrespondenceGraph* correspondence_graph_;
 
-    EIGEN_STL_UMAP(camera_t, class Camera) cameras_;
-    EIGEN_STL_UMAP(image_t, class Image) images_;
-    EIGEN_STL_UMAP(point3D_t, class Point3D) points3D_;
+    EIGEN_STL_UMAP ( camera_t, class Camera ) cameras_;
+    EIGEN_STL_UMAP ( image_t, class Image ) images_;
+    EIGEN_STL_UMAP ( point3D_t, class Point3D ) points3D_;
     std::unordered_map<image_pair_t, std::pair<size_t, size_t>> image_pairs_;
 
     // { image_id, ... } where `images_.at(image_id).registered == true`.
@@ -350,117 +351,143 @@ private:
 // Implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-size_t Reconstruction::NumCameras() const {
+size_t Reconstruction::NumCameras() const
+{
     return cameras_.size();
 }
 
-size_t Reconstruction::NumImages() const {
+size_t Reconstruction::NumImages() const
+{
     return images_.size();
 }
 
-size_t Reconstruction::NumRegImages() const {
+size_t Reconstruction::NumRegImages() const
+{
     return reg_image_ids_.size();
 }
 
-size_t Reconstruction::NumPoints3D() const {
+size_t Reconstruction::NumPoints3D() const
+{
     return points3D_.size();
 }
 
-size_t Reconstruction::NumImagePairs() const {
+size_t Reconstruction::NumImagePairs() const
+{
     return image_pairs_.size();
 }
 
-const class Camera& Reconstruction::Camera(const camera_t camera_id) const {
-    return cameras_.at(camera_id);
+const class Camera& Reconstruction::Camera ( const camera_t camera_id ) const
+{
+    return cameras_.at ( camera_id );
 }
 
-const class Image& Reconstruction::Image(const image_t image_id) const {
-    return images_.at(image_id);
+const class Image& Reconstruction::Image ( const image_t image_id ) const
+{
+    return images_.at ( image_id );
 }
 
-const class Point3D& Reconstruction::Point3D(const point3D_t point3D_id) const {
-    return points3D_.at(point3D_id);
+const class Point3D& Reconstruction::Point3D ( const point3D_t point3D_id ) const
+{
+    return points3D_.at ( point3D_id );
 }
 
-const std::pair<size_t, size_t>& Reconstruction::ImagePair(
-    const image_pair_t pair_id) const {
-    return image_pairs_.at(pair_id);
+const std::pair<size_t, size_t>& Reconstruction::ImagePair (
+    const image_pair_t pair_id ) const
+{
+    return image_pairs_.at ( pair_id );
 }
 
-const std::pair<size_t, size_t>& Reconstruction::ImagePair(
-    const image_t image_id1, const image_t image_id2) const {
-    const auto pair_id = Database::ImagePairToPairId(image_id1, image_id2);
-    return image_pairs_.at(pair_id);
+const std::pair<size_t, size_t>& Reconstruction::ImagePair (
+    const image_t image_id1, const image_t image_id2 ) const
+{
+    const auto pair_id = Database::ImagePairToPairId ( image_id1, image_id2 );
+    return image_pairs_.at ( pair_id );
 }
 
-class Camera& Reconstruction::Camera(const camera_t camera_id) {
-    return cameras_.at(camera_id);
+class Camera& Reconstruction::Camera ( const camera_t camera_id )
+{
+    return cameras_.at ( camera_id );
 }
 
-class Image& Reconstruction::Image(const image_t image_id) {
-    return images_.at(image_id);
+class Image& Reconstruction::Image ( const image_t image_id )
+{
+    return images_.at ( image_id );
 }
 
-class Point3D& Reconstruction::Point3D(const point3D_t point3D_id) {
-    return points3D_.at(point3D_id);
+class Point3D& Reconstruction::Point3D ( const point3D_t point3D_id )
+{
+    return points3D_.at ( point3D_id );
 }
 
-std::pair<size_t, size_t>& Reconstruction::ImagePair(
-    const image_pair_t pair_id) {
-    return image_pairs_.at(pair_id);
+std::pair<size_t, size_t>& Reconstruction::ImagePair (
+    const image_pair_t pair_id )
+{
+    return image_pairs_.at ( pair_id );
 }
 
-std::pair<size_t, size_t>& Reconstruction::ImagePair(const image_t image_id1,
-        const image_t image_id2) {
-    const auto pair_id = Database::ImagePairToPairId(image_id1, image_id2);
-    return image_pairs_.at(pair_id);
+std::pair<size_t, size_t>& Reconstruction::ImagePair ( const image_t image_id1,
+        const image_t image_id2 )
+{
+    const auto pair_id = Database::ImagePairToPairId ( image_id1, image_id2 );
+    return image_pairs_.at ( pair_id );
 }
 
-const EIGEN_STL_UMAP(camera_t, Camera) & Reconstruction::Cameras() const {
+const EIGEN_STL_UMAP ( camera_t, Camera ) & Reconstruction::Cameras() const
+{
     return cameras_;
 }
 
-const EIGEN_STL_UMAP(image_t, class Image) & Reconstruction::Images() const {
+const EIGEN_STL_UMAP ( image_t, class Image ) & Reconstruction::Images() const
+{
     return images_;
 }
 
-const std::vector<image_t>& Reconstruction::RegImageIds() const {
+const std::vector<image_t>& Reconstruction::RegImageIds() const
+{
     return reg_image_ids_;
 }
 
-const EIGEN_STL_UMAP(point3D_t, Point3D) & Reconstruction::Points3D() const {
+const EIGEN_STL_UMAP ( point3D_t, Point3D ) & Reconstruction::Points3D() const
+{
     return points3D_;
 }
 
 const std::unordered_map<image_pair_t, std::pair<size_t, size_t>>&
-Reconstruction::ImagePairs() const {
+        Reconstruction::ImagePairs() const
+{
     return image_pairs_;
 }
 
-void Reconstruction::UpdateCamera(const camera_t camera_id, 
-                                  const class Camera& camera) {
-    CHECK(ExistsCamera(camera_id));
+void Reconstruction::UpdateCamera ( const camera_t camera_id,
+                                    const class Camera& camera )
+{
+    CHECK ( ExistsCamera ( camera_id ) );
     cameras_[camera_id] = camera;
 }
 
-bool Reconstruction::ExistsCamera(const camera_t camera_id) const {
-    return cameras_.find(camera_id) != cameras_.end();
+bool Reconstruction::ExistsCamera ( const camera_t camera_id ) const
+{
+    return cameras_.find ( camera_id ) != cameras_.end();
 }
 
-bool Reconstruction::ExistsImage(const image_t image_id) const {
-    return images_.find(image_id) != images_.end();
+bool Reconstruction::ExistsImage ( const image_t image_id ) const
+{
+    return images_.find ( image_id ) != images_.end();
 }
 
-bool Reconstruction::ExistsPoint3D(const point3D_t point3D_id) const {
-    return points3D_.find(point3D_id) != points3D_.end();
+bool Reconstruction::ExistsPoint3D ( const point3D_t point3D_id ) const
+{
+    return points3D_.find ( point3D_id ) != points3D_.end();
 }
 
-bool Reconstruction::ExistsImagePair(const image_pair_t pair_id) const {
-    return image_pairs_.find(pair_id) != image_pairs_.end();
+bool Reconstruction::ExistsImagePair ( const image_pair_t pair_id ) const
+{
+    return image_pairs_.find ( pair_id ) != image_pairs_.end();
 }
 
-bool Reconstruction::IsImageRegistered(const image_t image_id) const {
-    return Image(image_id).IsRegistered();
+bool Reconstruction::IsImageRegistered ( const image_t image_id ) const
+{
+    return Image ( image_id ).IsRegistered();
 }
 
 }  // namespace colmap

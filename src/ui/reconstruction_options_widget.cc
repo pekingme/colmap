@@ -166,6 +166,8 @@ MapperFilteringOptionsWidget::MapperFilteringOptionsWidget (
                       "min_focal_length_ratio" );
     AddOptionDouble ( &options->mapper->max_focal_length_ratio,
                       "max_focal_length_ratio" );
+    AddOptionDouble ( &options->mapper->max_principal_point_error_ratio, 
+                      "max_principal_point_error_ratio" );
     AddOptionDouble ( &options->mapper->max_extra_param, "max_extra_param" );
 
     AddOptionDouble ( &options->mapper->mapper.filter_max_reproj_error,

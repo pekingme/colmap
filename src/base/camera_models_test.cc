@@ -82,14 +82,14 @@ void TestModel(const std::vector<double>& params) {
                     CameraModel::num_params);
 
   BOOST_CHECK(!CameraModelHasBogusParams(CameraModel::model_id, default_params,
-                                         100, 100, 0.1, 2.0, 1.0));
+                                         100, 100, 0.1, 2.0, 0.05, 1.0));
   BOOST_CHECK(CameraModelHasBogusParams(CameraModel::model_id, default_params,
-                                        100, 100, 0.1, 0.5, 1.0));
+                                        100, 100, 0.1, 0.5, 0.05, 1.0));
   BOOST_CHECK(CameraModelHasBogusParams(CameraModel::model_id, default_params,
-                                        100, 100, 1.5, 2.0, 1.0));
+                                        100, 100, 1.5, 2.0, 0.05, 1.0));
   if (CameraModel::extra_params_idxs.size() > 0) {
     BOOST_CHECK(CameraModelHasBogusParams(CameraModel::model_id, default_params,
-                                          100, 100, 0.1, 2.0, -0.1));
+                                          100, 100, 0.1, 2.0, 0.05, -0.1));
   }
 
   BOOST_CHECK_EQUAL(

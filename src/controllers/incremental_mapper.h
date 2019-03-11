@@ -80,6 +80,7 @@ public:
     // Thresholds for filtering images with degenerate intrinsics.
     double min_focal_length_ratio = 0.1;
     double max_focal_length_ratio = 10.0;
+    double max_principal_point_error_ratio = 0.05;
     double max_extra_param = 1.0;
 
     // Which intrinsic parameters to optimize during the reconstruction.

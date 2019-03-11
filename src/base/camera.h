@@ -122,6 +122,7 @@ class Camera {
   // Check whether camera has bogus parameters.
   bool HasBogusParams(const double min_focal_length_ratio,
                       const double max_focal_length_ratio,
+                      const double max_principal_point_error_ratio,
                       const double max_extra_param) const;
 
   // Initialize parameters for given camera model and focal length, and set

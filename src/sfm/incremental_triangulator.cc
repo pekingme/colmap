@@ -746,6 +746,7 @@ bool IncrementalTriangulator::HasCameraBogusParams(const Options& options,
   if (it == camera_has_bogus_params_.end()) {
     const bool has_bogus_params = camera.HasBogusParams(
         options.min_focal_length_ratio, options.max_focal_length_ratio,
+        options.max_principal_point_error_ratio,
         options.max_extra_param);
     camera_has_bogus_params_.emplace(camera.CameraId(), has_bogus_params);
     return has_bogus_params;

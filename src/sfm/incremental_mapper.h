@@ -105,6 +105,9 @@ class IncrementalMapper {
     // parameters are filtered and ignored in triangulation.
     double min_focal_length_ratio = 0.1;  // Opening angle of ~130deg
     double max_focal_length_ratio = 10;   // Opening angle of ~5deg
+    double max_principal_point_error_ratio = 0.05; // Error between principal point
+                                                   // and image center to image size in
+                                                   // corresponding dimension.
     double max_extra_param = 1;
 
     // Maximum reprojection error in pixels for observations.

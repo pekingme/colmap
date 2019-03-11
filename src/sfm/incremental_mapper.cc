@@ -89,6 +89,8 @@ bool IncrementalMapper::Options::Check() const {
     CHECK_OPTION_GE(local_ba_min_tri_angle, 0.0);
     CHECK_OPTION_GE(min_focal_length_ratio, 0.0);
     CHECK_OPTION_GE(max_focal_length_ratio, min_focal_length_ratio);
+    CHECK_OPTION_GE(max_principal_point_error_ratio, 0.0);
+    CHECK_OPTION_LE(max_principal_point_error_ratio, 0.5);
     CHECK_OPTION_GE(max_extra_param, 0.0);
     CHECK_OPTION_GE(filter_max_reproj_error, 0.0);
     CHECK_OPTION_GE(filter_min_tri_angle, 0.0);
@@ -416,6 +418,7 @@ bool IncrementalMapper::RegisterNextImage(const Options& options,
             // Avoid correspondences to images with bogus camera parameters.
             if (corr_camera.HasBogusParams(options.min_focal_length_ratio,
                                            options.max_focal_length_ratio,
+                                           options.max_principal_point_error_ratio,
                                            options.max_extra_param)) {
                 continue;
             }
@@ -465,6 +468,7 @@ bool IncrementalMapper::RegisterNextImage(const Options& options,
         // Camera already refined from another image with the same camera.
         if (camera.HasBogusParams(options.min_focal_length_ratio,
                                   options.max_focal_length_ratio,
+                                  options.max_principal_point_error_ratio,
                                   options.max_extra_param)) {
             // Previously refined camera has bogus parameters,
             // so reset parameters and try to re-refine.
@@ -733,6 +737,7 @@ size_t IncrementalMapper::FilterImages(const Options& options) {
 
     const std::vector<image_t> image_ids = reconstruction_->FilterImages(
             options.min_focal_length_ratio, options.max_focal_length_ratio,
+            options.max_principal_point_error_ratio,
             options.max_extra_param);
 
     for (const image_t image_id : image_ids) {
