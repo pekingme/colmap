@@ -1130,6 +1130,8 @@ int RunModelOrientationAligner(int argc, char** argv) {
                              "{MANHATTAN-WORLD, IMAGE-ORIENTATION}");
     options.AddDefaultOption("max_image_size",
                              &frame_estimation_options.max_image_size);
+    options.AddDefaultOption("num_threads",
+                             &frame_estimation_options.num_threads);
     options.Parse(argc, argv);
 
     StringToLower(&method);
@@ -1925,6 +1927,7 @@ int RunIndependentModelMerger(int argc, char** argv) {
     options.AddDefaultOption("gpu_index", &merger_options.gpu_index);
     options.AddDefaultOption("max_reproj_error", &merger_options.max_reproj_error);
     options.AddDefaultOption("global_ba", &merger_options.global_ba);
+    options.AddDefaultOption("reuse_camera", &merger_options.reuse_camera);
     options.AddCrossGroupMatchingOptions();
     options.AddMapperOptions();
     options.AddBundleAdjustmentOptions();

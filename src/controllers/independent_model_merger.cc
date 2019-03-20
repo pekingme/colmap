@@ -64,12 +64,12 @@ IndependentModelMergerController::IndependentModelMergerController(
     CHECK(!ExistsFile(JoinPaths(options_.workspace_path, "database.db")));
 
     // Sparse reconstruction directories. Assume direcotry name "sparse" is used.
-    const std::string input_path1 = JoinPaths(options_.workspace_path1, "sparse", "rig-ba");
-    const std::string input_path2 = JoinPaths(options_.workspace_path2, "sparse", "rig-ba");
-    const std::string output_path = JoinPaths(options_.workspace_path, "sparse");
+    const std::string input_path1 = JoinPaths(options_.workspace_path1, "sparse", "merged-ba");
+    const std::string input_path2 = JoinPaths(options_.workspace_path2, "sparse", "merged-ba");
+    output_path_ = JoinPaths(options_.workspace_path, "sparse", "merged_ba");
     CHECK(ExistsDir(input_path1));
     CHECK(ExistsDir(input_path2));
-    CreateDirIfNotExists(output_path);
+    CreateDirIfNotExists(output_path_);
 
     reconstruction1_.Read(input_path1);
     reconstruction2_.Read(input_path2);
@@ -177,8 +177,10 @@ void IndependentModelMergerController::RunMergeDatabase() {
 
     Database database (database_path);
 
-    database.Combine(database1, &camera_id_map1, &image_id_map1, &image_pair_id_map1);
-    database.Combine(database2, &camera_id_map2, &image_id_map2, &image_pair_id_map2);
+    database.Combine(database1, &camera_id_map1, &image_id_map1, &image_pair_id_map1, 
+                     options_.reuse_camera);
+    database.Combine(database2, &camera_id_map2, &image_id_map2, &image_pair_id_map2, 
+                     options_.reuse_camera);
 
     database1.Close();
     database2.Close();
@@ -190,10 +192,6 @@ void IndependentModelMergerController::RunMergeDatabase() {
 
     PrintHeading1("Updating indices in two sparse models");
     timer.Restart();
-
-    const std::string input_path1 = JoinPaths(options_.workspace_path1, "sparse");
-    const std::string input_path2 = JoinPaths(options_.workspace_path2, "sparse");
-    const std::string input_path = JoinPaths(options_.workspace_path, "sparse");
 
     PrintHeading2("Reconstruction 1");
     std::cout << StringPrintf("Images: %d", reconstruction1_.NumRegImages())
@@ -236,8 +234,6 @@ void IndependentModelMergerController::RunModelMerger() {
     PrintHeading1("Registering images");
     Timer timer;
     timer.Start();
-
-    const std::string output_path = JoinPaths(options_.workspace_path, "sparse");
 
     // Assume first model has the more registered images.
     if(reconstruction1_.NumRegImages() < reconstruction2_.NumRegImages()) {
@@ -307,8 +303,8 @@ void IndependentModelMergerController::RunModelMerger() {
         std::cout << StringPrintf("Points: %d", reconstruction1_.NumPoints3D())
                   << std::endl;
         // Only write reconstruction if succeeded.
-        CreateDirIfNotExists(output_path);
-        reconstruction1_.Write(output_path);
+        CreateDirIfNotExists(output_path_);
+        reconstruction1_.Write(output_path_);
     } else {
         std::cout << "=> Merge failed" << std::endl;
     }
@@ -321,16 +317,14 @@ void IndependentModelMergerController::RunGlobalBundleAdjuster() {
     Timer timer;
     timer.Start();
 
-    const std::string output_path = JoinPaths(options_.workspace_path, "sparse");
-
     BundleAdjustmentController ba_controller(option_manager_, &reconstruction1_);
     active_thread_ = &ba_controller;
     ba_controller.Start();
     ba_controller.Wait();
     active_thread_ = nullptr;
 
-    CreateDirIfNotExists(output_path);
-    reconstruction1_.Write(output_path);
+    CreateDirIfNotExists(output_path_);
+    reconstruction1_.Write(output_path_);
 }
 
 }  // namespace colmap

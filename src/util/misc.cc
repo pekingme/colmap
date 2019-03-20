@@ -96,6 +96,8 @@ bool ExistsPath(const std::string& path) {
 
 void CreateDirIfNotExists(const std::string& path) {
     if (!ExistsDir(path)) {
+        const std::string base_path = GetParentDir(path);
+        CreateDirIfNotExists(base_path);
         CHECK(boost::filesystem::create_directory(path));
     }
 }

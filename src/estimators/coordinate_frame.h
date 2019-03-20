@@ -49,6 +49,8 @@ struct ManhattanWorldFrameEstimationOptions {
   double max_line_vp_distance = 0.5;
   // The maximum cosine distance between estimated axes to be inliers.
   double max_axis_distance = 0.05;
+  // Number of worker threads in thread pool.
+  int num_threads = -1;
 };
 
 // Estimate gravity vector by assuming gravity-aligned image orientation, i.e.

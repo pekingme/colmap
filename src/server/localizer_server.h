@@ -23,6 +23,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "util/threading.h"
 #include "server/cpprest_import.h"
 #include "server/localizer.h"
 
@@ -39,7 +40,8 @@ public:
     enum ServiceType {
         // GET /api/LandmarkQuery/venue/{venue_name}/
         LANDMARK_QUERY,
-        // GET /api/PictureLocalization/venue/{venue_name}/frame/{frame_csv_names}/
+        // GET /api/func/{service_type}/venue/{venue_name}/frame/{frame_names_csv}...
+        //     /camera_model/{camera_model_name}/camera_params/{params_csv}/
         PICTURE_LOCALIZATION,
         UNSUPPORTED,
     };
@@ -72,6 +74,8 @@ private:
 
     int next_request_id_ = 1;
     unordered_map<string, shared_ptr<Localizer>> requests_handlers_;
+    
+    ThreadPool thread_pool_;
 };
 
 #endif // LOCALIZER_SERVER_H_

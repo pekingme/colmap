@@ -47,6 +47,11 @@ public:
         // ComputeAlignmentBetweenReconstructions in SimilarityTransform.h
         double max_reproj_error = 64.0;
 
+        // Whether to reuse cameras in first reconstruction for iamges in 
+        // second reconstruction. Could be dangerous if cameras are swapped
+        // while recording those two videos.
+        bool reuse_camera = true;
+        
         // Whether run a global bundle adjuster at the end.
         bool global_ba = true;
 
@@ -71,10 +76,11 @@ private:
     void RunFeatureMatching();
     void RunModelMerger();
     void RunGlobalBundleAdjuster();
+    
+    std::string output_path_;
 
     Reconstruction reconstruction1_;
     Reconstruction reconstruction2_;
-    Reconstruction main_reconstruction_;
 
     const Options options_;
     OptionManager option_manager_;

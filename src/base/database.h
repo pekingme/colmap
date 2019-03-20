@@ -72,10 +72,12 @@ class Database {
   void Close();
   
   // Combine with a new database: all content of new database are appended.
+  // If reuse_camera is true, cameras are copied only if no cameras at all.
   void Combine(const Database& database,
                std::unordered_map<camera_t, camera_t>* camera_id_map,
                std::unordered_map<image_t, image_t>* image_id_map,
-               std::unordered_map<image_pair_t, image_pair_t>* image_pair_id_map);
+               std::unordered_map<image_pair_t, image_pair_t>* image_pair_id_map,
+               const bool reuse_camera);
 
   // Check if entry already exists in database. For image pairs, the order of
   // `image_id1` and `image_id2` does not matter.
@@ -200,6 +202,9 @@ class Database {
   // making sure that the entry already exists.
   void UpdateImage(const Image& image) const;
   
+  // Delete camera based on camera id.
+  void DeleteCamera(const camera_t camera_id) const;
+  
   // Delete image based on image id. It seems keypoints and descriptors are 
   // deleted automatically.
   void DeleteImage(const image_t image_id) const;
@@ -318,6 +323,7 @@ class Database {
   sqlite3_stmt* sql_stmt_write_two_view_geometry_ = nullptr;
 
   // delete_*
+  sqlite3_stmt* sql_stmt_delete_camera_ = nullptr;
   sqlite3_stmt* sql_stmt_delete_image_ = nullptr;
   sqlite3_stmt* sql_stmt_delete_matches_ = nullptr;
   sqlite3_stmt* sql_stmt_delete_two_view_geometry_ = nullptr;

@@ -26,10 +26,10 @@
 #include "AzureStorageCpplite/blob/blob_client.h"
 
 #include "util/misc.h"
-#include "util/threading.h"
 #include "util/option_manager.h"
 #include "server/localization_result.h"
 #include "server/landmark_info.h"
+#include "server/cpprest_import.h"
 
 using namespace colmap;
 
@@ -58,10 +58,14 @@ const int AZURE_MAX_CONCURRENCY = 10;
 /**
  * This class handle task of localizing a list of new images in the corresponding venue.
  */
-class Localizer : public Thread
+class Localizer
 {
 public:
-    Localizer(const std::string& venue_name, const std::vector<std::string>& request_image_names);
+    Localizer(const std::string& venue_name,
+              const std::vector<std::string>& request_image_names);
+
+    void CalculateLocation(const std::string& camera_model_name,
+                           const std::string& camera_params_csv);
 
     int CollectStatus() {
         return finish_status_;
@@ -73,23 +77,26 @@ public:
     web::json::value CollectResult();
 
 private:
-    void Run();
-
-    void LoadRequestImagesFromAzure();
-    std::vector<LocalizationResult> LocalizeImages(const OptionManager& options );
-    std::vector<LandmarkInfo> FetchLandmarks();
+    bool LoadRequestImagesFromAzure();
+    void SetupOptions(const std::string& camera_model_name,
+                           const std::string& camera_params_csv);
+    void SetupLocalFiles();
+    void LocalizeImages();
+    void FetchLandmarks();
 
     std::shared_ptr<azure::storage_lite::blob_client_wrapper> blob_client_wrapper_;
-    
+
     std::vector<LocalizationResult> localization_results_;
     std::vector<LandmarkInfo> landmark_infos_;
-    
+
     double scale_to_meter_;
-    
+
     std::string venue_name_;
     std::vector<std::string> request_image_names_;
     std::stringstream err_;
     int finish_status_;
+
+    OptionManager options_;
 };
 
 #endif // LOCALIZER_H_

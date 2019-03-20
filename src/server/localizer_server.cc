@@ -51,7 +51,7 @@ static bool FetchFields(const web::http::http_request& message,
     return true;
 }
 
-LocalizerServer::LocalizerServer(const utility::string_t& url) : listener_(url)
+LocalizerServer::LocalizerServer(const utility::string_t& url) : listener_(url), thread_pool_(2)
 {
     listener_.support(methods::GET, std::bind(&LocalizerServer::HandleGet, this, std::placeholders::_1));
     listener_.support(methods::PUT, std::bind(&LocalizerServer::HandlePut, this, std::placeholders::_1));
@@ -64,10 +64,10 @@ LocalizerServer::LocalizerServer(const utility::string_t& url) : listener_(url)
 LocalizerServer::ServiceType LocalizerServer::FindServiceType(const web::http::http_request& message)
 {
     vector<string> field_values, field_names {"func"};
-    if(!FetchFields(message, field_names, &field_values)){
+    if(!FetchFields(message, field_names, &field_values)) {
         return ServiceType::UNSUPPORTED;
     }
-    
+
     string service_type_name = field_values[0];
     if( service_type_name == "LandmarkQuery") {
         return ServiceType::LANDMARK_QUERY;
@@ -81,52 +81,55 @@ LocalizerServer::ServiceType LocalizerServer::FindServiceType(const web::http::h
 void LocalizerServer::ProcessLandmarkQuery(web::http::http_request* message)
 {
     vector<string> field_values, field_names {"venue"};
-    if(!FetchFields(*message, field_names, &field_values)){
+    if(!FetchFields(*message, field_names, &field_values)) {
         message->reply(status_codes::BadRequest);
         return;
     }
-    
+
     string venue_name = field_values[0];
     // TODO reply landmarks
 }
 
+// /api/func/{service_type}/venue/{venue_name}/camera_model/{camera_model_name}...
+// /camera_params/{params_csv}/frame/{frame_names_csv}/
 void LocalizerServer::ProcessPictureLocalization(web::http::http_request* message)
 {
-    vector<string> field_values, field_names {"venue", "frame"};
-    if(!FetchFields(*message, field_names, &field_values)){
+    vector<string> field_values, field_names {
+        "venue", "frame", "camera_model", "camera_params"
+    };
+    if(!FetchFields(*message, field_names, &field_values)) {
         message->reply(status_codes::BadRequest);
         return;
     }
-    
+
     string venue_name = field_values[0];
     string image_csv_names = field_values[1];
+    string camera_model_name = field_values[2];
+    string camera_params_csv = field_values[3];
     vector<string> image_names;
     boost::split(image_names, image_csv_names, [](char c) {
         return c == ',';
     });
-    
-    if(image_names.empty()){
+
+    if(image_names.empty()) {
         message->reply(status_codes::OK, "No image to process");
         return;
     }
 
-    shared_ptr<Localizer> localizer = make_shared<Localizer>(venue_name, image_names);
-    localizer->AddCallback(Thread::FINISHED_CALLBACK, [localizer, message]() {
-        // Collect localization result.
-        if(localizer->CollectStatus() == EXIT_SUCCESS) {
-            message->reply(status_codes::OK, localizer->CollectResult());
+    thread_pool_.AddTask([message, venue_name, image_names,
+    camera_model_name, camera_params_csv]() {
+        Localizer localizer (venue_name, image_names);
+        localizer.CalculateLocation(camera_model_name, camera_params_csv);
+        if(localizer.CollectStatus() == EXIT_FAILURE) {
+            message->reply(status_codes::InternalError);
         } else {
-            message->reply(status_codes::InternalError, localizer->CollectError());
+            message->reply(status_codes::OK, localizer.CollectResult());
         }
     });
-    requests_handlers_[to_string(next_request_id_)] = localizer;
-    next_request_id_ ++;
-
-    localizer->Start();
-    localizer->Wait();
-    localizer.reset();
+    thread_pool_.Wait();
 }
 
+// /api/func/{service_type}/...
 void LocalizerServer::HandleGet(web::http::http_request message)
 {
     std::cout << message.relative_uri().to_string() << std::endl;

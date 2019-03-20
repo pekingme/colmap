@@ -297,7 +297,8 @@ void Database::Close() {
 void Database::Combine(const Database& database,
                        std::unordered_map<camera_t, camera_t>* camera_id_map,
                        std::unordered_map<image_t, image_t>* image_id_map,
-                       std::unordered_map<image_pair_t, image_pair_t>* image_pair_id_map) {
+                       std::unordered_map<image_pair_t, image_pair_t>* image_pair_id_map,
+                       const bool reuse_camera) {
     Timer timer;
     timer.Start();
 
@@ -334,19 +335,27 @@ void Database::Combine(const Database& database,
     }
 
     // Combine cameras.
-    timer.Restart();
-    std::cout << std::endl << "Combining cameras..." << std::flush;
-    {
-        const std::vector<Camera> new_cameras = database.ReadAllCameras();
-        for(const auto& camera : new_cameras) {
-            if(skip_camera_ids.count(camera.CameraId()) == 0) {
-                camera_t new_camera_id = WriteCamera(camera);
-                (*camera_id_map)[camera.CameraId()] = new_camera_id;
+    if(!reuse_camera || NumCameras() == 0) {
+        timer.Restart();
+        std::cout << std::endl << "Combining cameras..." << std::flush;
+        {
+            const std::vector<Camera> new_cameras = database.ReadAllCameras();
+            for(const auto& camera : new_cameras) {
+                if(skip_camera_ids.count(camera.CameraId()) == 0) {
+                    camera_t new_camera_id = WriteCamera(camera);
+                    (*camera_id_map)[camera.CameraId()] = new_camera_id;
+                }
             }
+            std::cout << StringPrintf(" %d in %.3fs", new_cameras.size(),
+                                      timer.ElapsedSeconds())
+                      << std::endl;
         }
-        std::cout << StringPrintf(" %d in %.3fs", new_cameras.size(),
-                                  timer.ElapsedSeconds())
-                  << std::endl;
+    } else {
+        std::cout << std::endl << "Cameras are reused, camera combining skip" << std::endl;
+        const std::vector<Camera> old_cameras = ReadAllCameras();
+        for(const auto& camera : old_cameras){
+            (*camera_id_map)[camera.CameraId()] = camera.CameraId();
+        }
     }
 
     // Combine images.
@@ -912,6 +921,13 @@ void Database::UpdateImage(const Image& image) const {
     SQLITE3_CALL(sqlite3_reset(sql_stmt_update_image_));
 }
 
+void Database::DeleteCamera(const camera_t camera_id) const {
+    SQLITE3_CALL(sqlite3_bind_int64(sql_stmt_delete_camera_, 1,
+                                    static_cast<sqlite3_int64>(camera_id)));
+    SQLITE3_CALL(sqlite3_step(sql_stmt_delete_camera_));
+    SQLITE3_CALL(sqlite3_reset(sql_stmt_delete_camera_));
+}
+
 void Database::DeleteImage(const image_t image_id) const {
     SQLITE3_CALL(sqlite3_bind_int64(sql_stmt_delete_image_, 1,
                                     static_cast<sqlite3_int64>(image_id)));
@@ -1146,6 +1162,10 @@ void Database::PrepareSQLStatements() {
     //////////////////////////////////////////////////////////////////////////////
     // delete_*
     //////////////////////////////////////////////////////////////////////////////
+    sql = "DELETE FROM cameras WHERE camera_id = ?;";
+    SQLITE3_CALL(sqlite3_prepare_v2(database_, sql.c_str(), -1,
+                                    &sql_stmt_delete_camera_, 0));
+
     sql = "DELETE FROM images WHERE image_id = ?;";
     SQLITE3_CALL(sqlite3_prepare_v2(database_, sql.c_str(), -1,
                                     &sql_stmt_delete_image_, 0));

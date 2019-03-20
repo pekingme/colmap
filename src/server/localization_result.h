@@ -71,10 +71,13 @@ private:
 
     friend std::ostream& operator<< ( std::ostream& os, const LocalizationResult& data )
     {
-        os << "Image_" << data.image_id_ << " [" << data.image_name_ << "]: "
-           << ( data.success_?"successful":"failed" ) << endl
-           << data.projection_center_ << endl
-           << data.viewing_direction_ << endl;
+        os << "Image_" << data.image_id_ << " [" << data.image_name_ << "]: ";
+        if(data.success_) {
+            os << "successful" << endl << data.projection_center_ << endl
+               << data.viewing_direction_ << endl;
+        } else {
+            os << "failed" << endl;
+        }
         return os;
     }
 };

@@ -209,7 +209,7 @@ class IncrementalMapper {
       const Options& options, const BundleAdjustmentOptions& ba_options,
       const IncrementalTriangulator::Options& tri_options,
       const image_t image_id, const std::unordered_set<point3D_t>& point3D_ids);
-
+  
   // Global bundle adjustment using Ceres Solver or PBA.
   bool AdjustGlobalBundle(const BundleAdjustmentOptions& ba_options);
   bool AdjustParallelGlobalBundle(
