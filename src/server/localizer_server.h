@@ -71,9 +71,6 @@ private:
     void ProcessPictureLocalization(http_request* message);
 
     http_listener listener_;
-
-    int next_request_id_ = 1;
-    unordered_map<string, shared_ptr<Localizer>> requests_handlers_;
     
     ThreadPool thread_pool_;
 };

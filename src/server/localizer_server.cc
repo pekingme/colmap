@@ -126,7 +126,6 @@ void LocalizerServer::ProcessPictureLocalization(web::http::http_request* messag
             message->reply(status_codes::OK, localizer.CollectResult());
         }
     });
-    thread_pool_.Wait();
 }
 
 // /api/func/{service_type}/...

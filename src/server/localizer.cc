@@ -101,18 +101,7 @@ inline std::string GetLocalImageName ( const std::string& request_image_name )
 }
 
 Localizer::Localizer ( const std::string& venue_name, const std::vector<std::string>& request_image_names )
-    : venue_name_ ( EnsureTrailingSlash ( venue_name ) ), request_image_names_ ( request_image_names )
-{
-    // Create Azure storage blob client.
-    std::shared_ptr<azure::storage_lite::shared_key_credential> credential =
-        std::make_shared<azure::storage_lite::shared_key_credential> ( AZURE_ACCOUNT_NAME, AZURE_ACCOUNT_KEY );
-    std::shared_ptr<azure::storage_lite::storage_account> account =
-        std::make_shared<azure::storage_lite::storage_account> ( AZURE_ACCOUNT_NAME, credential, true );
-    auto blob_client = std::make_shared<azure::storage_lite::blob_client> ( account, AZURE_MAX_CONCURRENCY );
-    blob_client_wrapper_ = std::make_shared<azure::storage_lite::blob_client_wrapper> ( blob_client );
-    // Make sure blob container exists.
-    assert ( blob_client_wrapper_->container_exists ( BLOB_CONTAINER ) );
-}
+    : venue_name_ ( EnsureTrailingSlash ( venue_name ) ), request_image_names_ ( request_image_names ) {}
 
 void Localizer::CalculateLocation(const std::string& camera_model_name,
                                   const std::string& camera_params_csv) {
@@ -132,13 +121,25 @@ void Localizer::CalculateLocation(const std::string& camera_model_name,
 
     // Register query images in mapper.
     LocalizeImages();
-    
+
     // Fetch landmarks.
     FetchLandmarks();
 }
 
 bool Localizer::LoadRequestImagesFromAzure()
 {
+    // Create Azure storage blob client.
+    std::shared_ptr<azure::storage_lite::shared_key_credential> credential =
+        std::make_shared<azure::storage_lite::shared_key_credential> ( AZURE_ACCOUNT_NAME, AZURE_ACCOUNT_KEY );
+    std::shared_ptr<azure::storage_lite::storage_account> account =
+        std::make_shared<azure::storage_lite::storage_account> ( AZURE_ACCOUNT_NAME, credential, true );
+    std::shared_ptr<azure::storage_lite::blob_client> blob_client =
+        std::make_shared<azure::storage_lite::blob_client> ( account, AZURE_MAX_CONCURRENCY );
+    std::shared_ptr<azure::storage_lite::blob_client_wrapper> blob_client_wrapper =
+        std::make_shared<azure::storage_lite::blob_client_wrapper> ( blob_client );
+    // Make sure blob container exists.
+    assert ( blob_client_wrapper_->container_exists ( BLOB_CONTAINER ) );
+    // Download
     for ( const auto& request_image_name : request_image_names_ ) {
         std::string blob_image_name = GetBlobImageName ( request_image_name );
         std::string local_image_path = GetLocalImagePath ( request_image_name, venue_name_ );
@@ -148,7 +149,7 @@ bool Localizer::LoadRequestImagesFromAzure()
         // Make sure blob exists before downloading.
         assert ( blob_client_wrapper_->blob_exists ( BLOB_CONTAINER, blob_image_name ) );
         time_t last_modified;
-        blob_client_wrapper_->download_blob_to_file ( BLOB_CONTAINER, blob_image_name, local_image_path, last_modified );
+        blob_client_wrapper->download_blob_to_file ( BLOB_CONTAINER, blob_image_name, local_image_path, last_modified );
         if(errno != 0) {
             std::cout << "Download error code: " << errno << std::endl;
             return false;
@@ -234,7 +235,7 @@ void Localizer::LocalizeImages ()
         feature_extractor.Start();
         feature_extractor.Wait();
     }
-    
+
     // Add all request image names in to a set.
     std::unordered_set<std::string> request_image_names;
     request_image_names.insert(reader_options.image_list.begin(),
@@ -271,21 +272,29 @@ void Localizer::LocalizeImages ()
 
     Reconstruction reconstruction;
     reconstruction.Read ( venue_name_+MODEL_PATH );
-
-    std::vector<image_t> clean_up_image_ids;
-    std::vector<camera_t> clean_up_camera_ids;
+    std::cout << "DEBUG: done reading reconstruction" << std::endl;
 
     IncrementalMapper mapper ( &database_cache );
+    std::cout << "DEBUG: done create mapper" << std::endl;
     mapper.BeginReconstruction ( &reconstruction );
+    std::cout << "DEBUG: done begin reconstruction" << std::endl;
 
     const auto mapper_options = options_.mapper->Mapper();
 
     localization_results_.clear();
+    std::cout << "reconstruction images: "<<reconstruction.Images().size()<<std::endl;
+
+    for( const string image_name : request_image_names) {
+        std::cout << "request image: " <<image_name << std::endl;
+    }
+
     for ( const auto& image : reconstruction.Images() ) {
-        if(request_image_names.count(image.second.Name()) == 0){
+        std::cout << "DEBUG: image " << image.second.Name() << std::endl;
+        if(request_image_names.count(image.second.Name()) == 0) {
+            std::cout << "DEBUG: skipped" << std::endl;
             continue;
         }
-        
+
         if ( image.second.IsRegistered() ) {
             PrintHeading1 ( "Image #" + std::to_string ( image.first ) +
                             " is registered. Previous pose is assigned." );
@@ -309,33 +318,38 @@ void Localizer::LocalizeImages ()
                 LocalizationResult result ( image.second, false );
                 localization_results_.push_back ( result );
             }
-
-            //clean_up_image_ids.emplace_back ( image.first );
-            //clean_up_camera_ids.emplace_back ( image.second.CameraId() );
         }
     }
-    
+
     std::cout << "DEBUG: finished registration" << std::endl;
 
     const bool kDiscardReconstruction = true;
     mapper.EndReconstruction ( kDiscardReconstruction );
 
     // Clean up database.
-    for ( const auto& image_id : clean_up_image_ids ) {
-        database.DeleteImage ( image_id );
+    std::unordered_set<camera_t> clean_up_camera_ids;
+    for(const string& request_image_name : request_image_names) {
+        std::cout << "Deleting iamge " << request_image_name << std::endl;
+        const Image& request_image = database.ReadImageWithName(request_image_name);
+        clean_up_camera_ids.insert(request_image.CameraId());
+
+        database.DeleteImage ( request_image.ImageId() );
         for ( const auto& image : reconstruction.Images() ) {
-            if ( database.ExistsMatches ( image_id, image.first ) ) {
-                database.DeleteMatches ( image_id, image.first );
-                if ( database.ExistsInlierMatches ( image_id, image.first ) ) {
-                    database.DeleteInlierMatches ( image_id, image.first );
+            if ( database.ExistsMatches ( request_image.ImageId(), image.first ) ) {
+                database.DeleteMatches ( request_image.ImageId(), image.first );
+                if ( database.ExistsInlierMatches ( request_image.ImageId(), image.first ) ) {
+                    database.DeleteInlierMatches ( request_image.ImageId(), image.first );
                 }
             }
         }
     }
     for(const auto& camera_id : clean_up_camera_ids) {
+        std::cout << "Deleting camera " << camera_id << std::endl;
         database.DeleteCamera(camera_id);
     }
-    
+
+    database.Close();
+
     finish_status_ = EXIT_SUCCESS;
 }
 
@@ -378,6 +392,7 @@ web::json::value Localizer::CollectResult()
         cout << localization_results_[i] << endl;
     }
     result["localization_result"] = localization_results_value;
-    
+
     return result;
 }
+

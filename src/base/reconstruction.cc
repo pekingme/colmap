@@ -151,17 +151,23 @@ void Reconstruction::SetUp ( const CorrespondenceGraph* correspondence_graph )
         image.second.SetUp ( Camera ( image.second.CameraId() ) );
     }
     correspondence_graph_ = correspondence_graph;
+    std::cout << "DEBUG: assign correspondence graph" << std::endl;
 
     // If an existing model was loaded from disk and there were already images
     // registered previously, we need to set observations as triangulated.
     for ( const auto image_id : reg_image_ids_ ) {
-        const class Image& image = Image ( image_id );
-        for ( point2D_t point2D_idx = 0; point2D_idx < image.NumPoints2D();
-                ++point2D_idx ) {
-            if ( image.Point2D ( point2D_idx ).HasPoint3D() ) {
-                const bool kIsContinuedPoint3D = false;
-                SetObservationAsTriangulated ( image_id, point2D_idx,
-                                               kIsContinuedPoint3D );
+//        std::cout << "DEBUG: image " << image_id << std::endl;
+        if(ExistsImage(image_id) && IsImageRegistered(image_id)) {
+            const class Image& image = Image ( image_id );
+//            std::cout << "DEBUG: found " << image.NumPoints2D() << std::endl;
+            for ( point2D_t point2D_idx = 0; point2D_idx < image.NumPoints2D();
+                    ++point2D_idx ) {
+                if ( image.Point2D ( point2D_idx ).HasPoint3D() ) {
+//                    std::cout << "DEBUG: 2D point has 3D point" << std::endl;
+                    const bool kIsContinuedPoint3D = false;
+                    SetObservationAsTriangulated ( image_id, point2D_idx,
+                                                   kIsContinuedPoint3D );
+                }
             }
         }
     }
@@ -1997,26 +2003,39 @@ void Reconstruction::SetObservationAsTriangulated (
 
     const class Image& image = Image ( image_id );
     const Point2D& point2D = image.Point2D ( point2D_idx );
-    const std::vector<CorrespondenceGraph::Correspondence>& corrs =
-        correspondence_graph_->FindCorrespondences ( image_id, point2D_idx );
 
-    CHECK ( image.IsRegistered() );
-    CHECK ( point2D.HasPoint3D() );
+//    std::cout << "DEBUG: before find corrs" << std::endl;
+    if(correspondence_graph_->HasCorrespondences(image_id, point2D_idx)) {
+        const std::vector<CorrespondenceGraph::Correspondence>& corrs =
+            correspondence_graph_->FindCorrespondences ( image_id, point2D_idx );
 
-    for ( const auto& corr : corrs ) {
-        class Image& corr_image = Image ( corr.image_id );
-        const Point2D& corr_point2D = corr_image.Point2D ( corr.point2D_idx );
-        corr_image.IncrementCorrespondenceHasPoint3D ( corr.point2D_idx );
-        // Update number of shared 3D points between image pairs and make sure to
-        // only count the correspondences once (not twice forward and backward).
-        if ( point2D.Point3DId() == corr_point2D.Point3DId() &&
-                ( is_continued_point3D || image_id < corr.image_id ) ) {
-            const image_pair_t pair_id =
-                Database::ImagePairToPairId ( image_id, corr.image_id );
-            image_pairs_[pair_id].first += 1;
-            CHECK_LE ( image_pairs_[pair_id].first, image_pairs_[pair_id].second )
-                    << "The correspondence graph graph must not contain duplicate "
-                    "matches";
+//        std::cout << "DEBUG: before checks" << std::endl;
+
+        CHECK ( image.IsRegistered() );
+        CHECK ( point2D.HasPoint3D() );
+//        std::cout << "DEBUG: after checks" << std::endl;
+
+        for ( const auto& corr : corrs ) {
+            if(!ExistsImage(corr.image_id)) {
+                continue;
+            }
+            class Image& corr_image = Image ( corr.image_id );
+
+//            std::cout << "DEBUG: corr image " << corr.image_id << std::endl;
+
+            const Point2D& corr_point2D = corr_image.Point2D ( corr.point2D_idx );
+            corr_image.IncrementCorrespondenceHasPoint3D ( corr.point2D_idx );
+            // Update number of shared 3D points between image pairs and make sure to
+            // only count the correspondences once (not twice forward and backward).
+            if ( point2D.Point3DId() == corr_point2D.Point3DId() &&
+                    ( is_continued_point3D || image_id < corr.image_id ) ) {
+                const image_pair_t pair_id =
+                    Database::ImagePairToPairId ( image_id, corr.image_id );
+                image_pairs_[pair_id].first += 1;
+                CHECK_LE ( image_pairs_[pair_id].first, image_pairs_[pair_id].second )
+                        << "The correspondence graph graph must not contain duplicate "
+                        "matches";
+            }
         }
     }
 }
@@ -2055,4 +2074,5 @@ void Reconstruction::ResetTriObservations ( const image_t image_id,
 }
 
 }  // namespace colmap
+
 

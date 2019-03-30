@@ -84,8 +84,6 @@ private:
     void LocalizeImages();
     void FetchLandmarks();
 
-    std::shared_ptr<azure::storage_lite::blob_client_wrapper> blob_client_wrapper_;
-
     std::vector<LocalizationResult> localization_results_;
     std::vector<LandmarkInfo> landmark_infos_;
 

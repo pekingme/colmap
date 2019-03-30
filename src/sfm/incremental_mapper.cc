@@ -109,15 +109,20 @@ IncrementalMapper::IncrementalMapper(const DatabaseCache* database_cache)
 void IncrementalMapper::BeginReconstruction(Reconstruction* reconstruction) {
     CHECK(reconstruction_ == nullptr);
     reconstruction_ = reconstruction;
+    std::cout << "DEBUG: assign reconstruciton" << std::endl;
     reconstruction_->Load(*database_cache_);
+    std::cout << "DEBUG: load database cache" << std::endl;
     reconstruction_->SetUp(&database_cache_->CorrespondenceGraph());
+    std::cout << "DEBUG: setup coorespondence graph" << std::endl;
     triangulator_.reset(new IncrementalTriangulator(
                             &database_cache_->CorrespondenceGraph(), reconstruction));
+    std::cout << "DEBUG: reset triangulator" << std::endl;
 
     num_shared_reg_images_ = 0;
     for (const image_t image_id : reconstruction_->RegImageIds()) {
         RegisterImageEvent(image_id);
     }
+    std::cout << "DEBUG: register images" << std::endl;
 
     prev_init_image_pair_id_ = kInvalidImagePairId;
     prev_init_two_view_geometry_ = TwoViewGeometry();
