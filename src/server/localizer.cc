@@ -34,7 +34,7 @@ bool VerifyCameraParams ( const std::string& camera_model,
                           const std::string& params )
 {
     if ( !ExistsCameraModelWithName ( camera_model ) ) {
-        std::cerr << "ERROR: Camera model does not exist" << std::endl;
+        std::cerr << "ERROR: Unknown camera model." << std::endl;
         return false;
     }
 
@@ -43,7 +43,7 @@ bool VerifyCameraParams ( const std::string& camera_model,
 
     if ( camera_params.size() > 0 &&
             !CameraModelVerifyParams ( camera_model_id, camera_params ) ) {
-        std::cerr << "ERROR: Invalid camera parameters" << std::endl;
+        std::cerr << "ERROR: Invalid camera parameters." << std::endl;
         return false;
     }
     return true;
@@ -97,7 +97,7 @@ inline std::string GetLocalImagePath ( const std::string& request_image_name, co
 
 inline std::string GetLocalImageName ( const std::string& request_image_name )
 {
-    return request_image_name + BLOB_SUBFIX;
+    return request_image_name + BLOB_SUFFIX;
 }
 
 Localizer::Localizer ( const std::string& venue_name, const std::vector<std::string>& request_image_names )
@@ -138,7 +138,7 @@ bool Localizer::LoadRequestImagesFromAzure()
     std::shared_ptr<azure::storage_lite::blob_client_wrapper> blob_client_wrapper =
         std::make_shared<azure::storage_lite::blob_client_wrapper> ( blob_client );
     // Make sure blob container exists.
-    assert ( blob_client_wrapper_->container_exists ( BLOB_CONTAINER ) );
+    assert ( blob_client_wrapper->container_exists ( BLOB_CONTAINER ) );
     // Download
     for ( const auto& request_image_name : request_image_names_ ) {
         std::string blob_image_name = GetBlobImageName ( request_image_name );
@@ -147,7 +147,7 @@ bool Localizer::LoadRequestImagesFromAzure()
                   << "\""<< local_image_path << "\"" << std::endl;
 
         // Make sure blob exists before downloading.
-        assert ( blob_client_wrapper_->blob_exists ( BLOB_CONTAINER, blob_image_name ) );
+        assert ( blob_client_wrapper->blob_exists ( BLOB_CONTAINER, blob_image_name ) );
         time_t last_modified;
         blob_client_wrapper->download_blob_to_file ( BLOB_CONTAINER, blob_image_name, local_image_path, last_modified );
         if(errno != 0) {

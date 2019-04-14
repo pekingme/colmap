@@ -129,12 +129,18 @@ struct VocabTreeMatchingOptions {
     // Path to the vocabulary tree.
     std::string vocab_tree_path = "";
 
-    // Optional path to file with specific image names to match.
+    // Optional path to file with image names to match.
     std::string match_list_path = "";
+    
+    // Optional a vector holding image names to match.
+    std::vector<std::string> match_list;
 
-    // Optional path to file with specific image names to index.
+    // Optional path to file with image names to index.
     std::string index_list_path = "";
 
+    // Optional a vector holding image names to index.
+    std::vector<std::string> index_list;
+    
     bool Check() const;
 };
 
@@ -492,7 +498,8 @@ class VocabTreeFeatureMatcher : public Thread {
 public:
     VocabTreeFeatureMatcher(const VocabTreeMatchingOptions& options,
                             const SiftMatchingOptions& match_options,
-                            const std::string& database_path);
+                            const std::string& database_path,
+                            std::vector<image_t>* image_ids = nullptr);
 
 private:
     void Run() override;
@@ -502,6 +509,7 @@ private:
     Database database_;
     FeatureMatcherCache cache_;
     SiftFeatureMatcher matcher_;
+    std::vector<image_t>* image_ids_;
 };
 
 // Match images against spatial nearest neighbors using prior location

@@ -36,5 +36,12 @@ Use External Terminal=false
 Working Directory=file:///home/haodong/COLMAP-Workspace
 isExecutable=false
 
+[MakeBuilder]
+Number Of Jobs=4
+Override Number Of Jobs=true
+
 [Project]
 VersionControlSupport=kdevgit
+
+[SourceFileTemplates]
+LastUsedTemplate=/home/haodong/.local/share/kdevfiletemplates/template_descriptions/cpp_basic.desktop

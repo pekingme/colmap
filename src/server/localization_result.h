@@ -43,13 +43,21 @@ class LocalizationResult
 {
 public:
     LocalizationResult ( const Image& image, const bool success )
-        : image_id_ ( image.ImageId() ), image_name_ ( image.Name() ), success_ ( success ),
-          projection_center_ ( image.ProjectionCenter() ),
-          viewing_direction_ ( image.ViewingDirection() ) {}
-
-    inline LocalizationResult Scale ( const double scale )
+        : image_id_ ( image.ImageId() ), image_name_ ( image.Name() ), success_ ( success )
     {
-        return LocalizationResult ( image_id_, image_name_, success_, projection_center_ * scale,
+        if ( success_ ) {
+            projection_center_ = Eigen::Vector3d ( image.ProjectionCenter() );
+            viewing_direction_ = Eigen::Vector3d ( image.ViewingDirection() );
+        } else {
+            projection_center_ = Eigen::Vector3d::Zero();
+            viewing_direction_ = Eigen::Vector3d::Zero();
+        }
+    }
+
+    inline LocalizationResult Scale ( const double scale ) const
+    {
+        return LocalizationResult ( image_id_, image_name_, success_,
+                                    projection_center_ * scale,
                                     viewing_direction_ * scale );
     }
 
@@ -72,7 +80,7 @@ private:
     friend std::ostream& operator<< ( std::ostream& os, const LocalizationResult& data )
     {
         os << "Image_" << data.image_id_ << " [" << data.image_name_ << "]: ";
-        if(data.success_) {
+        if ( data.success_ ) {
             os << "successful" << endl << data.projection_center_ << endl
                << data.viewing_direction_ << endl;
         } else {
@@ -83,3 +91,4 @@ private:
 };
 
 #endif // LOCALIZATION_RESULT_H_
+// kate: indent-mode cstyle; indent-width 4; replace-tabs on; 

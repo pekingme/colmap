@@ -1184,12 +1184,15 @@ void SequentialFeatureMatcher::RunLoopDetection(
 
 VocabTreeFeatureMatcher::VocabTreeFeatureMatcher(
     const VocabTreeMatchingOptions& options,
-    const SiftMatchingOptions& match_options, const std::string& database_path)
+    const SiftMatchingOptions& match_options,
+    const std::string& database_path,
+    std::vector<image_t>* image_ids)
     : options_(options),
       match_options_(match_options),
       database_(database_path),
       cache_(5 * options_.num_images, &database_),
-      matcher_(match_options, &database_, &cache_) {
+      matcher_(match_options, &database_, &cache_),
+      image_ids_(image_ids) {
     CHECK(options_.Check());
     CHECK(match_options_.Check());
 }
@@ -1218,10 +1221,8 @@ void VocabTreeFeatureMatcher::Run() {
         const auto& image = cache_.GetImage(image_id);
         image_name_to_image_id.emplace(image.Name(), image_id);
     }
-
-    if(options_.index_list_path == "") {
-        index_image_ids = all_image_ids;
-    } else {
+    
+    if(options_.index_list_path != ""){
         // Read the index list path.
         std::ifstream file(options_.index_list_path);
         CHECK(file.is_open()) << options_.index_list_path;
@@ -1239,11 +1240,19 @@ void VocabTreeFeatureMatcher::Run() {
                 index_image_ids.push_back(image_name_to_image_id.at(line));
             }
         }
+    }else if(options_.index_list.size() > 0){
+        for(const std::string& image_name : options_.index_list){
+            if(image_name_to_image_id.count(image_name) == 0) {
+                std::cerr << "ERROR: Image " << image_name << " does not exist." << std::endl;
+            } else {
+                index_image_ids.push_back(image_name_to_image_id.at(image_name));
+            }
+        }
+    }else{
+        index_image_ids = all_image_ids;
     }
-
-    if (options_.match_list_path == "") {
-        match_image_ids = cache_.GetImageIds();
-    } else {
+    
+    if(options_.match_list_path != ""){
         // Read the match list path.
         std::ifstream file(options_.match_list_path);
         CHECK(file.is_open()) << options_.match_list_path;
@@ -1261,6 +1270,16 @@ void VocabTreeFeatureMatcher::Run() {
                 match_image_ids.push_back(image_name_to_image_id.at(line));
             }
         }
+    }else if(options_.match_list.size() > 0){
+        for(const std::string& image_name : options_.match_list){
+            if (image_name_to_image_id.count(image_name) == 0) {
+                std::cerr << "ERROR: Image " << image_name << " does not exist." << std::endl;
+            } else {
+                match_image_ids.push_back(image_name_to_image_id.at(image_name));
+            }
+        }
+    }else{
+        match_image_ids = all_image_ids;
     }
 
     // Index all images in the visual index.
@@ -1279,6 +1298,10 @@ void VocabTreeFeatureMatcher::Run() {
         options_.num_nearest_neighbors, options_.num_checks,
         options_.num_images_after_verification, options_.max_num_features,
         match_image_ids, this, &cache_, &visual_index, &matcher_);
+
+    if(image_ids_ != nullptr) {
+        std::swap(*image_ids_, match_image_ids);
+    }
 
     GetTimer().PrintMinutes();
 }

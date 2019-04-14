@@ -182,6 +182,7 @@ void DatabaseCache::Load ( const Database& database, const size_t min_num_matche
             image_t image_id1;
             image_t image_id2;
             Database::PairIdToImagePair ( image_pair_ids[i], &image_id1, &image_id2 );
+            //std::cout << "DEBUG: pair: " << image_pair_ids[i] << std::endl;
             if ( image_ids.count ( image_id1 ) > 0 && image_ids.count ( image_id2 ) > 0 ) {
                 correspondence_graph_.AddCorrespondences (
                     image_id1, image_id2, two_view_geometries[i].inlier_matches );

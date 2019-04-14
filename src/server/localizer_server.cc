@@ -54,11 +54,7 @@ static bool FetchFields(const web::http::http_request& message,
 LocalizerServer::LocalizerServer(const utility::string_t& url) : listener_(url), thread_pool_(2)
 {
     listener_.support(methods::GET, std::bind(&LocalizerServer::HandleGet, this, std::placeholders::_1));
-    listener_.support(methods::PUT, std::bind(&LocalizerServer::HandlePut, this, std::placeholders::_1));
-    listener_.support(methods::POST, std::bind(&LocalizerServer::HandlePost, this, std::placeholders::_1));
-    listener_.support(methods::DEL, std::bind(&LocalizerServer::HandleDelete, this, std::placeholders::_1));
-
-    // TODO Initialize request logger here.
+    azure_blob_loader_ = make_shared<AzureBlobLoader>();
 }
 
 LocalizerServer::ServiceType LocalizerServer::FindServiceType(const web::http::http_request& message)
@@ -102,7 +98,8 @@ void LocalizerServer::ProcessPictureLocalization(web::http::http_request* messag
         return;
     }
 
-    string venue_name = field_values[0];
+    //string venue_name = field_values[0];
+    string venue_name = "whitmore-upper";
     string image_csv_names = field_values[1];
     string camera_model_name = field_values[2];
     string camera_params_csv = field_values[3];
@@ -128,6 +125,7 @@ void LocalizerServer::ProcessPictureLocalization(web::http::http_request* messag
     });
 }
 
+
 // /api/func/{service_type}/...
 void LocalizerServer::HandleGet(web::http::http_request message)
 {
@@ -139,7 +137,8 @@ void LocalizerServer::HandleGet(web::http::http_request message)
         ProcessLandmarkQuery(&message);
         break;
     case PICTURE_LOCALIZATION:
-        ProcessPictureLocalization(&message);
+        //ProcessPictureLocalization(&message);
+        ProcessPictureLocalization2(&message);
         break;
     case UNSUPPORTED:
         message.reply(status_codes::BadRequest);
@@ -147,14 +146,56 @@ void LocalizerServer::HandleGet(web::http::http_request message)
     }
 }
 
-void LocalizerServer::HandlePut(web::http::http_request message)
+// /api/func/{service_type}/venue/{venue_name}/camera_model/{camera_model_name}...
+// /camera_params/{params_csv}/frame/{frame_names_csv}/
+void LocalizerServer::ProcessPictureLocalization2(web::http::http_request* message)
 {
+    vector<string> field_values, field_names {
+        "venue", "frame", "camera_model", "camera_params"
+    };
+    if(!FetchFields(*message, field_names, &field_values)) {
+        message->reply(status_codes::BadRequest);
+        return;
+    }
+
+    const string venue_name = field_values[0];
+    string image_csv_names = field_values[1];
+    string camera_model_name = field_values[2];
+    string camera_params_csv = field_values[3];
+
+    // Split image names.
+    vector<string> image_names;
+    boost::split(image_names, image_csv_names, [](char c) {
+        return c == ',';
+    });
+
+    if(image_names.empty()) {
+        message->reply(status_codes::OK, "No image to process");
+        return;
+    }
+
+    // Create localizer is not existed.
+    if(localizers_.find(venue_name) == localizers_.end()) {
+        // New venue, initiate localizer.
+        localizers_[venue_name] = make_shared<Localizer2>(venue_name, azure_blob_loader_);
+    }
+
+    // Localize images.
+    shared_ptr<Localizer2> localizer = localizers_.at(venue_name);
+    std::future<std::pair<int, web::json::value>> fut = std::async(std::launch::async, &Localizer2::Localize, localizer, camera_model_name, camera_params_csv, image_names);
+
+    std::chrono::seconds request_duraction(30);
+
+    if(fut.wait_for(request_duraction) == std::future_status::timeout) {
+        message->reply(status_codes::OK, "Server timeout.");
+    } else {
+        pair<int, web::json::value> result = fut.get();
+        if(result.first == EXIT_FAILURE) {
+            message->reply(status_codes::InternalError);
+        } else {
+            message->reply(status_codes::OK, result.second);
+        }
+    }
 }
 
-void LocalizerServer::HandlePost(web::http::http_request message)
-{
-}
 
-void LocalizerServer::HandleDelete(web::http::http_request message)
-{
-}

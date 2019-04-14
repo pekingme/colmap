@@ -51,7 +51,7 @@ const std::string AZURE_ACCOUNT_NAME = "5glab";
 const std::string AZURE_ACCOUNT_KEY = "zWdS5g8p0KKbidI2RE5GkkB1fdeMaZ5Bg0XxOzgIyxl39DM+syVXi9LT6BNQHCp01z5kQ3YI420bcMVV9Vm3qw==";
 const std::string BLOB_CONTAINER = "perceptvision";
 const std::string BLOB_PREFIX = "pictures/";
-const std::string BLOB_SUBFIX = ".JPG";
+const std::string BLOB_SUFFIX = ".JPG";
 const int AZURE_MAX_CONCURRENCY = 10;
 
 

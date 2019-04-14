@@ -164,28 +164,113 @@ Eigen::Matrix3d EstimateManhattanWorldFrame(
     std::vector<std::future<std::pair<RANSAC<VanishingPointEstimator>::Report,
         RANSAC<VanishingPointEstimator>::Report>>> futures;
 
-    for(size_t i = 0; i < reconstruction.NumRegImages(); ++i) {
-        futures.push_back(thread_pool.AddTask([stdout_steps, reconstruction, i,
-                                               image_path, options]() ->
-        std::pair<RANSAC<VanishingPointEstimator>::Report, RANSAC<VanishingPointEstimator>::Report> {
+    if(options.num_threads > 1) {
+        for(size_t i = 0; i < reconstruction.NumRegImages(); ++i) {
+            futures.push_back(thread_pool.AddTask([stdout_steps, reconstruction, i,
+                                                   image_path, options]() ->
+            std::pair<RANSAC<VanishingPointEstimator>::Report, RANSAC<VanishingPointEstimator>::Report> {
+                const auto image_id = reconstruction.RegImageIds()[i];
+                const auto& image = reconstruction.Image(image_id);
+                const auto& camera = reconstruction.Camera(image.CameraId());
+
+                if(stdout_steps) {
+                    PrintHeading1(StringPrintf("Processing image %s (%d / %d)",
+                    image.Name().c_str(), i + 1,
+                    reconstruction.NumRegImages()));
+
+                    std::cout << "Reading image..." << std::endl;
+                }
+
+                colmap::Bitmap bitmap;
+                CHECK(bitmap.Read(colmap::JoinPaths(image_path, image.Name())));
+
+                if(stdout_steps) {
+                    std::cout << "Undistorting image..." << std::endl;
+                }
+
+                UndistortCameraOptions undistortion_options;
+                undistortion_options.max_image_size = options.max_image_size;
+
+                Bitmap undistorted_bitmap;
+                Camera undistorted_camera;
+                UndistortImage(undistortion_options, bitmap, camera, &undistorted_bitmap,
+                &undistorted_camera);
+
+                if(stdout_steps) {
+                    std::cout << "Detecting lines...";
+                }
+
+                const std::vector<LineSegment> line_segments =
+                DetectLineSegments(undistorted_bitmap, options.min_line_length);
+                const std::vector<LineSegmentOrientation> line_orientations =
+                ClassifyLineSegmentOrientations(line_segments,
+                options.line_orientation_tolerance);
+
+                if(stdout_steps) {
+                    std::cout << StringPrintf(" %d", line_segments.size());
+                }
+
+                std::vector<LineSegment> horizontal_line_segments;
+                std::vector<LineSegment> vertical_line_segments;
+                std::vector<Eigen::Vector3d> horizontal_lines;
+                std::vector<Eigen::Vector3d> vertical_lines;
+                for (size_t i = 0; i < line_segments.size(); ++i) {
+                    const auto line_segment = line_segments[i];
+                    const Eigen::Vector3d line_segment_start =
+                    line_segment.start.homogeneous();
+                    const Eigen::Vector3d line_segment_end = line_segment.end.homogeneous();
+                    const Eigen::Vector3d line = line_segment_start.cross(line_segment_end);
+                    if (line_orientations[i] == LineSegmentOrientation::HORIZONTAL) {
+                        horizontal_line_segments.push_back(line_segment);
+                        horizontal_lines.push_back(line);
+                    } else if (line_orientations[i] == LineSegmentOrientation::VERTICAL) {
+                        vertical_line_segments.push_back(line_segment);
+                        vertical_lines.push_back(line);
+                    }
+                }
+
+                if(stdout_steps) {
+                    std::cout << StringPrintf(" (%d horizontal, %d vertical)",
+                                              horizontal_lines.size(), vertical_lines.size())
+                              << std::endl;
+
+                    std::cout << "Estimating vanishing points...";
+                }
+
+                RANSACOptions ransac_options;
+                ransac_options.max_error = options.max_line_vp_distance;
+                RANSAC<VanishingPointEstimator> ransac(ransac_options);
+                const auto horizontal_report =
+                    ransac.Estimate(horizontal_line_segments, horizontal_lines);
+                const auto vertical_report =
+                    ransac.Estimate(vertical_line_segments, vertical_lines);
+
+                if(stdout_steps) {
+                    std::cout << StringPrintf(" (%d horizontal inliers, %d vertical inliers)",
+                                              horizontal_report.support.num_inliers,
+                                              vertical_report.support.num_inliers)
+                              << std::endl;
+                }
+
+                return std::make_pair(horizontal_report, vertical_report);
+            }));
+        }
+    } else {
+        for (size_t i = 0; i < reconstruction.NumRegImages(); ++i) {
             const auto image_id = reconstruction.RegImageIds()[i];
             const auto& image = reconstruction.Image(image_id);
             const auto& camera = reconstruction.Camera(image.CameraId());
 
-            if(stdout_steps) {
-                PrintHeading1(StringPrintf("Processing image %s (%d / %d)",
-                image.Name().c_str(), i + 1,
-                reconstruction.NumRegImages()));
+            PrintHeading1(StringPrintf("Processing image %s (%d / %d)",
+                                       image.Name().c_str(), i + 1,
+                                       reconstruction.NumRegImages()));
 
-                std::cout << "Reading image..." << std::endl;
-            }
+            std::cout << "Reading image..." << std::endl;
 
             colmap::Bitmap bitmap;
             CHECK(bitmap.Read(colmap::JoinPaths(image_path, image.Name())));
 
-            if(stdout_steps) {
-                std::cout << "Undistorting image..." << std::endl;
-            }
+            std::cout << "Undistorting image..." << std::endl;
 
             UndistortCameraOptions undistortion_options;
             undistortion_options.max_image_size = options.max_image_size;
@@ -193,21 +278,17 @@ Eigen::Matrix3d EstimateManhattanWorldFrame(
             Bitmap undistorted_bitmap;
             Camera undistorted_camera;
             UndistortImage(undistortion_options, bitmap, camera, &undistorted_bitmap,
-            &undistorted_camera);
+                           &undistorted_camera);
 
-            if(stdout_steps) {
-                std::cout << "Detecting lines...";
-            }
+            std::cout << "Detecting lines...";
 
             const std::vector<LineSegment> line_segments =
-            DetectLineSegments(undistorted_bitmap, options.min_line_length);
+                DetectLineSegments(undistorted_bitmap, options.min_line_length);
             const std::vector<LineSegmentOrientation> line_orientations =
-            ClassifyLineSegmentOrientations(line_segments,
-            options.line_orientation_tolerance);
+                ClassifyLineSegmentOrientations(line_segments,
+                                                options.line_orientation_tolerance);
 
-            if(stdout_steps) {
-                std::cout << StringPrintf(" %d", line_segments.size());
-            }
+            std::cout << StringPrintf(" %d", line_segments.size());
 
             std::vector<LineSegment> horizontal_line_segments;
             std::vector<LineSegment> vertical_line_segments;
@@ -216,7 +297,7 @@ Eigen::Matrix3d EstimateManhattanWorldFrame(
             for (size_t i = 0; i < line_segments.size(); ++i) {
                 const auto line_segment = line_segments[i];
                 const Eigen::Vector3d line_segment_start =
-                line_segment.start.homogeneous();
+                    line_segment.start.homogeneous();
                 const Eigen::Vector3d line_segment_end = line_segment.end.homogeneous();
                 const Eigen::Vector3d line = line_segment_start.cross(line_segment_end);
                 if (line_orientations[i] == LineSegmentOrientation::HORIZONTAL) {
@@ -228,13 +309,11 @@ Eigen::Matrix3d EstimateManhattanWorldFrame(
                 }
             }
 
-            if(stdout_steps) {
-                std::cout << StringPrintf(" (%d horizontal, %d vertical)",
-                                          horizontal_lines.size(), vertical_lines.size())
-                          << std::endl;
+            std::cout << StringPrintf(" (%d horizontal, %d vertical)",
+                                      horizontal_lines.size(), vertical_lines.size())
+                      << std::endl;
 
-                std::cout << "Estimating vanishing points...";
-            }
+            std::cout << "Estimating vanishing points...";
 
             RANSACOptions ransac_options;
             ransac_options.max_error = options.max_line_vp_distance;
@@ -244,129 +323,46 @@ Eigen::Matrix3d EstimateManhattanWorldFrame(
             const auto vertical_report =
                 ransac.Estimate(vertical_line_segments, vertical_lines);
 
-            if(stdout_steps) {
-                std::cout << StringPrintf(" (%d horizontal inliers, %d vertical inliers)",
-                                          horizontal_report.support.num_inliers,
-                                          vertical_report.support.num_inliers)
-                          << std::endl;
+            std::cout << StringPrintf(" (%d horizontal inliers, %d vertical inliers)",
+                                      horizontal_report.support.num_inliers,
+                                      vertical_report.support.num_inliers)
+                      << std::endl;
+
+            std::cout << "Composing coordinate axes..." << std::endl;
+
+            const Eigen::Matrix3d inv_calib_matrix =
+                undistorted_camera.CalibrationMatrix().inverse();
+            const Eigen::Vector4d inv_qvec = InvertQuaternion(image.Qvec());
+
+            if (horizontal_report.success) {
+                const Eigen::Vector3d horizontal_camera_axis =
+                    (inv_calib_matrix * horizontal_report.model).normalized();
+                Eigen::Vector3d horizontal_axis =
+                    QuaternionRotatePoint(inv_qvec, horizontal_camera_axis).normalized();
+                // Make sure all axes point into the same direction.
+                if (rightward_axes.size() > 0 &&
+                        rightward_axes[0].dot(horizontal_axis) < 0) {
+                    horizontal_axis = -horizontal_axis;
+                }
+                rightward_axes.push_back(horizontal_axis);
+                std::cout << "  Horizontal: " << horizontal_axis.transpose() << std::endl;
             }
 
-            return std::make_pair(horizontal_report, vertical_report);
-        }));
-    }
-
-
-
-
-
-
-    for (size_t i = 0; i < reconstruction.NumRegImages(); ++i) {
-        const auto image_id = reconstruction.RegImageIds()[i];
-        const auto& image = reconstruction.Image(image_id);
-        const auto& camera = reconstruction.Camera(image.CameraId());
-
-        PrintHeading1(StringPrintf("Processing image %s (%d / %d)",
-                                   image.Name().c_str(), i + 1,
-                                   reconstruction.NumRegImages()));
-
-        std::cout << "Reading image..." << std::endl;
-
-        colmap::Bitmap bitmap;
-        CHECK(bitmap.Read(colmap::JoinPaths(image_path, image.Name())));
-
-        std::cout << "Undistorting image..." << std::endl;
-
-        UndistortCameraOptions undistortion_options;
-        undistortion_options.max_image_size = options.max_image_size;
-
-        Bitmap undistorted_bitmap;
-        Camera undistorted_camera;
-        UndistortImage(undistortion_options, bitmap, camera, &undistorted_bitmap,
-                       &undistorted_camera);
-
-        std::cout << "Detecting lines...";
-
-        const std::vector<LineSegment> line_segments =
-            DetectLineSegments(undistorted_bitmap, options.min_line_length);
-        const std::vector<LineSegmentOrientation> line_orientations =
-            ClassifyLineSegmentOrientations(line_segments,
-                                            options.line_orientation_tolerance);
-
-        std::cout << StringPrintf(" %d", line_segments.size());
-
-        std::vector<LineSegment> horizontal_line_segments;
-        std::vector<LineSegment> vertical_line_segments;
-        std::vector<Eigen::Vector3d> horizontal_lines;
-        std::vector<Eigen::Vector3d> vertical_lines;
-        for (size_t i = 0; i < line_segments.size(); ++i) {
-            const auto line_segment = line_segments[i];
-            const Eigen::Vector3d line_segment_start =
-                line_segment.start.homogeneous();
-            const Eigen::Vector3d line_segment_end = line_segment.end.homogeneous();
-            const Eigen::Vector3d line = line_segment_start.cross(line_segment_end);
-            if (line_orientations[i] == LineSegmentOrientation::HORIZONTAL) {
-                horizontal_line_segments.push_back(line_segment);
-                horizontal_lines.push_back(line);
-            } else if (line_orientations[i] == LineSegmentOrientation::VERTICAL) {
-                vertical_line_segments.push_back(line_segment);
-                vertical_lines.push_back(line);
+            if (vertical_report.success) {
+                const Eigen::Vector3d vertical_camera_axis =
+                    (inv_calib_matrix * vertical_report.model).normalized();
+                Eigen::Vector3d vertical_axis =
+                    QuaternionRotatePoint(inv_qvec, vertical_camera_axis).normalized();
+                // Make sure axis points downwards in the image, assuming that the image
+                // was taken in upright orientation.
+                if (vertical_camera_axis.dot(Eigen::Vector3d(0, 1, 0)) < 0) {
+                    vertical_axis = -vertical_axis;
+                }
+                downward_axes.push_back(vertical_axis);
+                std::cout << "  Vertical: " << vertical_axis.transpose() << std::endl;
             }
-        }
-
-        std::cout << StringPrintf(" (%d horizontal, %d vertical)",
-                                  horizontal_lines.size(), vertical_lines.size())
-                  << std::endl;
-
-        std::cout << "Estimating vanishing points...";
-
-        RANSACOptions ransac_options;
-        ransac_options.max_error = options.max_line_vp_distance;
-        RANSAC<VanishingPointEstimator> ransac(ransac_options);
-        const auto horizontal_report =
-            ransac.Estimate(horizontal_line_segments, horizontal_lines);
-        const auto vertical_report =
-            ransac.Estimate(vertical_line_segments, vertical_lines);
-
-        std::cout << StringPrintf(" (%d horizontal inliers, %d vertical inliers)",
-                                  horizontal_report.support.num_inliers,
-                                  vertical_report.support.num_inliers)
-                  << std::endl;
-
-        std::cout << "Composing coordinate axes..." << std::endl;
-
-        const Eigen::Matrix3d inv_calib_matrix =
-            undistorted_camera.CalibrationMatrix().inverse();
-        const Eigen::Vector4d inv_qvec = InvertQuaternion(image.Qvec());
-
-        if (horizontal_report.success) {
-            const Eigen::Vector3d horizontal_camera_axis =
-                (inv_calib_matrix * horizontal_report.model).normalized();
-            Eigen::Vector3d horizontal_axis =
-                QuaternionRotatePoint(inv_qvec, horizontal_camera_axis).normalized();
-            // Make sure all axes point into the same direction.
-            if (rightward_axes.size() > 0 &&
-                    rightward_axes[0].dot(horizontal_axis) < 0) {
-                horizontal_axis = -horizontal_axis;
-            }
-            rightward_axes.push_back(horizontal_axis);
-            std::cout << "  Horizontal: " << horizontal_axis.transpose() << std::endl;
-        }
-
-        if (vertical_report.success) {
-            const Eigen::Vector3d vertical_camera_axis =
-                (inv_calib_matrix * vertical_report.model).normalized();
-            Eigen::Vector3d vertical_axis =
-                QuaternionRotatePoint(inv_qvec, vertical_camera_axis).normalized();
-            // Make sure axis points downwards in the image, assuming that the image
-            // was taken in upright orientation.
-            if (vertical_camera_axis.dot(Eigen::Vector3d(0, 1, 0)) < 0) {
-                vertical_axis = -vertical_axis;
-            }
-            downward_axes.push_back(vertical_axis);
-            std::cout << "  Vertical: " << vertical_axis.transpose() << std::endl;
         }
     }
-
     PrintHeading1("Computing coordinate frame");
 
     Eigen::Matrix3d frame = Eigen::Matrix3d::Zero();

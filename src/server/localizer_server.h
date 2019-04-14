@@ -26,6 +26,8 @@
 #include "util/threading.h"
 #include "server/cpprest_import.h"
 #include "server/localizer.h"
+#include "server/localizer2.h"
+#include "server/azure_blob_loader.h"
 
 using namespace std;
 using namespace colmap;
@@ -58,9 +60,6 @@ public:
 
 private:
     void HandleGet(http_request message);
-    void HandlePut(http_request message);
-    void HandlePost(http_request message);
-    void HandleDelete(http_request message);
 
     // Determines which service the client is requesting.
     ServiceType FindServiceType(const http_request& message);
@@ -69,10 +68,14 @@ private:
     void ProcessLandmarkQuery(http_request* message);
     // Handle picture localization service request.
     void ProcessPictureLocalization(http_request* message);
+    // Handle picture localization service request.
+    void ProcessPictureLocalization2(http_request* message);
 
     http_listener listener_;
     
     ThreadPool thread_pool_;
+    unordered_map<string, shared_ptr<Localizer2>> localizers_;
+    shared_ptr<AzureBlobLoader> azure_blob_loader_;
 };
 
 #endif // LOCALIZER_SERVER_H_
