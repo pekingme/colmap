@@ -216,7 +216,7 @@ public:
     const FeatureDescriptors& GetDescriptors(const image_t image_id);
     FeatureMatches GetMatches(const image_t image_id1, const image_t image_id2);
     std::vector<image_t> GetImageIds() const;
-
+    
     bool ExistsMatches(const image_t image_id1, const image_t image_id2);
     bool ExistsInlierMatches(const image_t image_id1, const image_t image_id2);
 

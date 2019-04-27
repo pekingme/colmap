@@ -50,10 +50,9 @@ public:
     void LoadRequestImages(const std::vector<std::string>& image_names, 
                            const std::vector<std::string>& local_image_names);
 
-private:
-    void DownloadImage(const std::string& blob_name, const std::string& local_name);
-    
+private:    
     std::shared_ptr<azure::storage_lite::blob_client_wrapper> blob_client_wrapper_;
+    std::vector<std::future<void>> futures_;
 };
 
 #endif // AZUREBLOBLOADER_H

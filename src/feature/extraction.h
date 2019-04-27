@@ -37,6 +37,7 @@
 #include "base/database.h"
 #include "base/image_reader.h"
 #include "feature/sift.h"
+#include "feature/matching.h"
 #include "util/opengl_utils.h"
 #include "util/threading.h"
 
@@ -53,6 +54,10 @@ class SiftFeatureExtractor : public Thread {
 public:
     SiftFeatureExtractor(const ImageReaderOptions& reader_options,
                          const SiftExtractionOptions& sift_options);
+    
+    SiftFeatureExtractor(const ImageReaderOptions& reader_options,
+                         const SiftExtractionOptions& sift_options,
+                         FeatureMatcherCache* feature_matcher_cache);
 
 private:
     void Run();
@@ -61,6 +66,7 @@ private:
     const SiftExtractionOptions sift_options_;
 
     Database database_;
+    FeatureMatcherCache* feature_matcher_cache_;
     ImageReader image_reader_;
 
     std::vector<std::unique_ptr<Thread>> resizers_;

@@ -34,204 +34,216 @@
 #include "base/camera_models.h"
 #include "util/misc.h"
 
-namespace colmap {
+namespace colmap
+{
 
-bool ImageReaderOptions::Check() const {
-  CHECK_OPTION_GT(default_focal_length_factor, 0.0);
-  CHECK_OPTION(ExistsCameraModelWithName(camera_model));
-  const int model_id = CameraModelNameToId(camera_model);
-  if (!camera_params.empty()) {
-    CHECK_OPTION(
-        CameraModelVerifyParams(model_id, CSVToVector<double>(camera_params)));
-  }
-  return true;
+bool ImageReaderOptions::Check() const
+{
+    CHECK_OPTION_GT ( default_focal_length_factor, 0.0 );
+    CHECK_OPTION ( ExistsCameraModelWithName ( camera_model ) );
+    const int model_id = CameraModelNameToId ( camera_model );
+    if ( !camera_params.empty() ) {
+        CHECK_OPTION (
+            CameraModelVerifyParams ( model_id, CSVToVector<double> ( camera_params ) ) );
+    }
+    return true;
 }
 
-ImageReader::ImageReader(const ImageReaderOptions& options, Database* database)
-    : options_(options), database_(database), image_index_(0) {
-  CHECK(options_.Check());
+ImageReader::ImageReader ( const ImageReaderOptions& options, Database* database, 
+                           FeatureMatcherCache* feature_matcher_cache )
+    : options_ ( options ), database_ ( database ),
+      feature_matcher_cache_ ( feature_matcher_cache ),image_index_ ( 0 )
+{
+    CHECK ( options_.Check() );
 
-  // Ensure trailing slash, so that we can build the correct image name.
-  options_.image_path =
-      EnsureTrailingSlash(StringReplace(options_.image_path, "\\", "/"));
+    // Ensure trailing slash, so that we can build the correct image name.
+    options_.image_path =
+        EnsureTrailingSlash ( StringReplace ( options_.image_path, "\\", "/" ) );
 
-  // Get a list of all files in the image path, sorted by image name.
-  if (options_.image_list.empty()) {
-    options_.image_list = GetRecursiveFileList(options_.image_path);
-    std::sort(options_.image_list.begin(), options_.image_list.end());
-  } else {
-    for (auto& image_name : options_.image_list) {
-      image_name = JoinPaths(options_.image_path, image_name);
+    // Get a list of all files in the image path, sorted by image name.
+    if ( options_.image_list.empty() ) {
+        options_.image_list = GetRecursiveFileList ( options_.image_path );
+        std::sort ( options_.image_list.begin(), options_.image_list.end() );
+    } else {
+        for ( auto& image_name : options_.image_list ) {
+            image_name = JoinPaths ( options_.image_path, image_name );
+        }
     }
-  }
 
-  if (static_cast<camera_t>(options_.existing_camera_id) != kInvalidCameraId) {
-    CHECK(database->ExistsCamera(options_.existing_camera_id));
-    prev_camera_ = database->ReadCamera(options_.existing_camera_id);
-  } else {
-    // Set the manually specified camera parameters.
-    prev_camera_.SetCameraId(kInvalidCameraId);
-    prev_camera_.SetModelIdFromName(options_.camera_model);
-    if (!options_.camera_params.empty()) {
-      prev_camera_.SetParamsFromString(options_.camera_params);
-      prev_camera_.SetPriorFocalLength(true);
+    if ( static_cast<camera_t> ( options_.existing_camera_id ) != kInvalidCameraId ) {
+        CHECK ( database_->ExistsCamera ( options_.existing_camera_id ) );
+        prev_camera_ = database_->ReadCamera ( options_.existing_camera_id );
+    } else {
+        // Set the manually specified camera parameters.
+        prev_camera_.SetCameraId ( kInvalidCameraId );
+        prev_camera_.SetModelIdFromName ( options_.camera_model );
+        if ( !options_.camera_params.empty() ) {
+            prev_camera_.SetParamsFromString ( options_.camera_params );
+            prev_camera_.SetPriorFocalLength ( true );
+        }
     }
-  }
 }
 
-ImageReader::Status ImageReader::Next(Camera* camera, Image* image,
-                                      Bitmap* bitmap, Bitmap* mask) {
-  CHECK_NOTNULL(camera);
-  CHECK_NOTNULL(image);
-  CHECK_NOTNULL(bitmap);
+ImageReader::Status ImageReader::Next ( Camera* camera, Image* image,
+                                        Bitmap* bitmap, Bitmap* mask )
+{
+    CHECK_NOTNULL ( camera );
+    CHECK_NOTNULL ( image );
+    CHECK_NOTNULL ( bitmap );
 
-  image_index_ += 1;
-  CHECK_LE(image_index_, options_.image_list.size());
+    image_index_ += 1;
+    CHECK_LE ( image_index_, options_.image_list.size() );
 
-  const std::string image_path = options_.image_list.at(image_index_ - 1);
+    const std::string image_path = options_.image_list.at ( image_index_ - 1 );
 
-  DatabaseTransaction database_transaction(database_);
+    DatabaseTransaction database_transaction ( database_ );
 
-  //////////////////////////////////////////////////////////////////////////////
-  // Set the image name.
-  //////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////
+    // Set the image name.
+    //////////////////////////////////////////////////////////////////////////////
 
-  image->SetName(image_path);
-  image->SetName(StringReplace(image->Name(), "\\", "/"));
-  image->SetName(
-      image->Name().substr(options_.image_path.size(),
-                           image->Name().size() - options_.image_path.size()));
+    image->SetName ( image_path );
+    image->SetName ( StringReplace ( image->Name(), "\\", "/" ) );
+    image->SetName (
+        image->Name().substr ( options_.image_path.size(),
+                               image->Name().size() - options_.image_path.size() ) );
 
-  const std::string image_folder = GetParentDir(image->Name());
+    const std::string image_folder = GetParentDir ( image->Name() );
 
-  //////////////////////////////////////////////////////////////////////////////
-  // Check if image already read.
-  //////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////
+    // Check if image already read.
+    //////////////////////////////////////////////////////////////////////////////
 
-  const bool exists_image = database_->ExistsImageWithName(image->Name());
+    const bool exists_image = database_->ExistsImageWithName ( image->Name() );
 
-  if (exists_image) {
-    *image = database_->ReadImageWithName(image->Name());
-    const bool exists_keypoints = database_->ExistsKeypoints(image->ImageId());
-    const bool exists_descriptors =
-        database_->ExistsDescriptors(image->ImageId());
+    if ( exists_image ) {
+        *image = database_->ReadImageWithName ( image->Name() );
+        const bool exists_keypoints = database_->ExistsKeypoints ( image->ImageId() );
+        const bool exists_descriptors =
+            database_->ExistsDescriptors ( image->ImageId() );
 
-    if (exists_keypoints && exists_descriptors) {
-      return Status::IMAGE_EXISTS;
-    }
-  }
-
-  //////////////////////////////////////////////////////////////////////////////
-  // Read image.
-  //////////////////////////////////////////////////////////////////////////////
-
-  if (!bitmap->Read(image_path, false)) {
-    return Status::BITMAP_ERROR;
-  }
-  
-  //////////////////////////////////////////////////////////////////////////////
-  // Read mask.
-  //////////////////////////////////////////////////////////////////////////////
-
-  if (mask && !options_.mask_path.empty()) {
-    const std::string mask_path =
-        JoinPaths(options_.mask_path,
-                  GetRelativePath(options_.image_path, image_path) + ".png");
-    if (ExistsFile(mask_path) && !mask->Read(mask_path, false)) {
-      // NOTE: Maybe introduce a separate error type MASK_ERROR?
-      return Status::BITMAP_ERROR;
-    }
-  }
-
-  //////////////////////////////////////////////////////////////////////////////
-  // Check for well-formed data.
-  //////////////////////////////////////////////////////////////////////////////
-
-  if (exists_image) {
-    const Camera camera = database_->ReadCamera(image->CameraId());
-
-    if (options_.single_camera && prev_camera_.CameraId() != kInvalidCameraId &&
-        (camera.Width() != prev_camera_.Width() ||
-         camera.Height() != prev_camera_.Height())) {
-      return Status::CAMERA_SINGLE_DIM_ERROR;
+        if ( exists_keypoints && exists_descriptors ) {
+            return Status::IMAGE_EXISTS;
+        }
     }
 
-    if (static_cast<size_t>(bitmap->Width()) != camera.Width() ||
-        static_cast<size_t>(bitmap->Height()) != camera.Height()) {
-      return Status::CAMERA_EXIST_DIM_ERROR;
-    }
-  }
+    //////////////////////////////////////////////////////////////////////////////
+    // Read image.
+    //////////////////////////////////////////////////////////////////////////////
 
-  //////////////////////////////////////////////////////////////////////////////
-  // Check image dimensions.
-  //////////////////////////////////////////////////////////////////////////////
-
-  if (prev_camera_.CameraId() != kInvalidCameraId &&
-      ((options_.single_camera && !options_.single_camera_per_folder) ||
-       (options_.single_camera_per_folder &&
-        image_folder == prev_image_folder_)) &&
-      (prev_camera_.Width() != static_cast<size_t>(bitmap->Width()) ||
-       prev_camera_.Height() != static_cast<size_t>(bitmap->Height()))) {
-    return Status::CAMERA_SINGLE_DIM_ERROR;
-  }
-
-  //////////////////////////////////////////////////////////////////////////////
-  // Extract camera model and focal length
-  //////////////////////////////////////////////////////////////////////////////
-
-  if (prev_camera_.CameraId() == kInvalidCameraId ||
-      (!options_.single_camera && !options_.single_camera_per_folder &&
-       static_cast<camera_t>(options_.existing_camera_id) ==
-           kInvalidCameraId) ||
-      (options_.single_camera_per_folder &&
-       image_folders_.count(image_folder) == 0)) {
-    if (options_.camera_params.empty()) {
-      // Extract focal length.
-      double focal_length = 0.0;
-      if (bitmap->ExifFocalLength(&focal_length)) {
-        prev_camera_.SetPriorFocalLength(true);
-      } else {
-        focal_length = options_.default_focal_length_factor *
-                       std::max(bitmap->Width(), bitmap->Height());
-        prev_camera_.SetPriorFocalLength(false);
-      }
-
-      prev_camera_.InitializeWithId(prev_camera_.ModelId(), focal_length,
-                                    bitmap->Width(), bitmap->Height());
+    if ( !bitmap->Read ( image_path, false ) ) {
+        return Status::BITMAP_ERROR;
     }
 
-    prev_camera_.SetWidth(static_cast<size_t>(bitmap->Width()));
-    prev_camera_.SetHeight(static_cast<size_t>(bitmap->Height()));
+    //////////////////////////////////////////////////////////////////////////////
+    // Read mask.
+    //////////////////////////////////////////////////////////////////////////////
 
-    if (!prev_camera_.VerifyParams()) {
-      return Status::CAMERA_PARAM_ERROR;
+    if ( mask && !options_.mask_path.empty() ) {
+        const std::string mask_path =
+            JoinPaths ( options_.mask_path,
+                        GetRelativePath ( options_.image_path, image_path ) + ".png" );
+        if ( ExistsFile ( mask_path ) && !mask->Read ( mask_path, false ) ) {
+            // NOTE: Maybe introduce a separate error type MASK_ERROR?
+            return Status::BITMAP_ERROR;
+        }
     }
 
-    prev_camera_.SetCameraId(database_->WriteCamera(prev_camera_));
-  }
+    //////////////////////////////////////////////////////////////////////////////
+    // Check for well-formed data.
+    //////////////////////////////////////////////////////////////////////////////
 
-  image->SetCameraId(prev_camera_.CameraId());
+    if ( exists_image ) {
+        const Camera camera = database_->ReadCamera ( image->CameraId() );
 
-  //////////////////////////////////////////////////////////////////////////////
-  // Extract GPS data.
-  //////////////////////////////////////////////////////////////////////////////
+        if ( options_.single_camera && prev_camera_.CameraId() != kInvalidCameraId &&
+                ( camera.Width() != prev_camera_.Width() ||
+                  camera.Height() != prev_camera_.Height() ) ) {
+            return Status::CAMERA_SINGLE_DIM_ERROR;
+        }
 
-  if (!bitmap->ExifLatitude(&image->TvecPrior(0)) ||
-      !bitmap->ExifLongitude(&image->TvecPrior(1)) ||
-      !bitmap->ExifAltitude(&image->TvecPrior(2))) {
-    image->TvecPrior().setConstant(std::numeric_limits<double>::quiet_NaN());
-  }
+        if ( static_cast<size_t> ( bitmap->Width() ) != camera.Width() ||
+                static_cast<size_t> ( bitmap->Height() ) != camera.Height() ) {
+            return Status::CAMERA_EXIST_DIM_ERROR;
+        }
+    }
 
-  *camera = prev_camera_;
+    //////////////////////////////////////////////////////////////////////////////
+    // Check image dimensions.
+    //////////////////////////////////////////////////////////////////////////////
 
-  image_folders_.insert(image_folder);
-  prev_image_folder_ = image_folder;
+    if ( prev_camera_.CameraId() != kInvalidCameraId &&
+            ( ( options_.single_camera && !options_.single_camera_per_folder ) ||
+              ( options_.single_camera_per_folder &&
+                image_folder == prev_image_folder_ ) ) &&
+            ( prev_camera_.Width() != static_cast<size_t> ( bitmap->Width() ) ||
+              prev_camera_.Height() != static_cast<size_t> ( bitmap->Height() ) ) ) {
+        return Status::CAMERA_SINGLE_DIM_ERROR;
+    }
 
-  return Status::SUCCESS;
+    //////////////////////////////////////////////////////////////////////////////
+    // Extract camera model and focal length
+    //////////////////////////////////////////////////////////////////////////////
+
+    if ( prev_camera_.CameraId() == kInvalidCameraId ||
+            ( !options_.single_camera && !options_.single_camera_per_folder &&
+              static_cast<camera_t> ( options_.existing_camera_id ) ==
+              kInvalidCameraId ) ||
+            ( options_.single_camera_per_folder &&
+              image_folders_.count ( image_folder ) == 0 ) ) {
+        if ( options_.camera_params.empty() ) {
+            // Extract focal length.
+            double focal_length = 0.0;
+            if ( bitmap->ExifFocalLength ( &focal_length ) ) {
+                prev_camera_.SetPriorFocalLength ( true );
+            } else {
+                focal_length = options_.default_focal_length_factor *
+                               std::max ( bitmap->Width(), bitmap->Height() );
+                prev_camera_.SetPriorFocalLength ( false );
+            }
+
+            prev_camera_.InitializeWithId ( prev_camera_.ModelId(), focal_length,
+                                            bitmap->Width(), bitmap->Height() );
+        }
+
+        prev_camera_.SetWidth ( static_cast<size_t> ( bitmap->Width() ) );
+        prev_camera_.SetHeight ( static_cast<size_t> ( bitmap->Height() ) );
+
+        if ( !prev_camera_.VerifyParams() ) {
+            return Status::CAMERA_PARAM_ERROR;
+        }
+
+        prev_camera_.SetCameraId ( database_->WriteCamera ( prev_camera_ ) );
+    }
+
+    image->SetCameraId ( prev_camera_.CameraId() );
+
+    //////////////////////////////////////////////////////////////////////////////
+    // Extract GPS data.
+    //////////////////////////////////////////////////////////////////////////////
+
+    if ( !bitmap->ExifLatitude ( &image->TvecPrior ( 0 ) ) ||
+            !bitmap->ExifLongitude ( &image->TvecPrior ( 1 ) ) ||
+            !bitmap->ExifAltitude ( &image->TvecPrior ( 2 ) ) ) {
+        image->TvecPrior().setConstant ( std::numeric_limits<double>::quiet_NaN() );
+    }
+
+    *camera = prev_camera_;
+
+    image_folders_.insert ( image_folder );
+    prev_image_folder_ = image_folder;
+
+    return Status::SUCCESS;
 }
 
-size_t ImageReader::NextIndex() const { return image_index_; }
+size_t ImageReader::NextIndex() const
+{
+    return image_index_;
+}
 
-size_t ImageReader::NumImages() const { return options_.image_list.size(); }
+size_t ImageReader::NumImages() const
+{
+    return options_.image_list.size();
+}
 
 }  // namespace colmap

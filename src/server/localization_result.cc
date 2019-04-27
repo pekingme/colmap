@@ -18,22 +18,47 @@
 
 #include "server/localization_result.h"
 
-inline web::json::value Vector3DAsJSON(const Eigen::Vector3d vector){
-    web::json::value result = web::json::value::object();
-    result["x"] = web::json::value::number(vector.x());
-    result["y"] = web::json::value::number(vector.y());
-    result["z"] = web::json::value::number(vector.z());
-    
-    return result;
+inline rapidjson::Value Vector3DAsJSON( const Eigen::Vector3d vector,
+        rapidjson::Document* document )
+{
+    using namespace rapidjson;
+    using rapidjson::Type;
+
+    Value value ( kObjectType );
+    value.AddMember ( Value ( "x", document->GetAllocator() ).Move(),
+                      Value ( vector.x() ),
+                      document->GetAllocator() );
+    value.AddMember ( Value ( "y", document->GetAllocator() ).Move(),
+                      Value ( vector.y() ),
+                      document->GetAllocator() );
+    value.AddMember ( Value ( "z", document->GetAllocator() ).Move(),
+                      Value ( vector.z() ),
+                      document->GetAllocator() );
+
+    return value;
 }
 
-web::json::value LocalizationResult::AsJSON() const
+rapidjson::Value LocalizationResult::AsJSON ( rapidjson::Document* document ) const
 {
-    web::json::value result = web::json::value::object();
-    result[kIMAGE_ID] = web::json::value::number(image_id_);
-    result[kIMAGE_NAME] = web::json::value::string(image_name_);
-    result[kSUCCESS] = web::json::value::boolean(success_);
-    result[kPROJECT_CENTER] = Vector3DAsJSON(projection_center_);
-    result[kVIEW_DIRECTION] = Vector3DAsJSON(viewing_direction_);
-    return result;
+    using namespace rapidjson;
+    using rapidjson::Type;
+
+    Value value ( kObjectType );
+    value.AddMember ( Value ( kImageId.c_str(), document->GetAllocator() ).Move(),
+                      Value ( image_id_ ).Move(),
+                      document->GetAllocator() );
+    value.AddMember ( Value ( kImageName.c_str(), document->GetAllocator() ).Move(),
+                      Value ( image_name_.c_str(), document->GetAllocator() ).Move(),
+                      document->GetAllocator() );
+    value.AddMember ( Value ( kSuccess.c_str(), document->GetAllocator() ).Move(),
+                      Value ( success_ ),
+                      document->GetAllocator() );
+    value.AddMember ( Value ( kProjectCenter.c_str(), document->GetAllocator() ).Move(),
+                      Vector3DAsJSON ( projection_center_, document ),
+                      document->GetAllocator() );
+    value.AddMember ( Value ( kViewDirection.c_str(), document->GetAllocator() ).Move(),
+                      Vector3DAsJSON ( viewing_direction_, document ),
+                      document->GetAllocator() );
+
+    return value;
 }

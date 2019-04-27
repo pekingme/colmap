@@ -18,13 +18,24 @@
 
 #include "landmark_info.h"
 
-web::json::value LandmarkInfo::AsJSON() const
+rapidjson::Value LandmarkInfo::AsJSON(rapidjson::Document* document) const
 {
-    web::json::value result = web::json::value::object();
-    result["name"] = web::json::value::string(name_);
-    result["x"] = web::json::value::number(x_);
-    result["y"] = web::json::value::number(y_);
-    result["z"] = web::json::value::number(z_);
+    using namespace rapidjson;
+    using rapidjson::Type;
+
+    Value value ( kObjectType );
+    value.AddMember ( Value ( "name", document->GetAllocator() ).Move(),
+                      Value ( StringRef(name_.c_str()) ).Move(),
+                      document->GetAllocator() );
+    value.AddMember(Value("x", document->GetAllocator()).Move(),
+                    Value(x_).Move(),
+                    document->GetAllocator());
+    value.AddMember(Value("y", document->GetAllocator()).Move(),
+                    Value(y_).Move(),
+                    document->GetAllocator());
+    value.AddMember(Value("z", document->GetAllocator()).Move(),
+                    Value(z_).Move(),
+                    document->GetAllocator());
     
-    return result;
+    return value;
 }

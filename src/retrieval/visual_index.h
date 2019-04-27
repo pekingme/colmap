@@ -210,6 +210,7 @@ void VisualIndex<kDescType, kDescDim, kEmbeddingDim>::Add(
 
   // If the image is already indexed, do nothing.
   if (ImageIndexed(image_id)) {
+      std::cout << " skip" << std::flush;
     return;
   }
 

@@ -631,6 +631,8 @@ SiftFeatureMatcher::SiftFeatureMatcher(const SiftMatchingOptions& options,
         CHECK_GT(num_cuda_devices, 0);
         gpu_indices.resize(num_cuda_devices);
         std::iota(gpu_indices.begin(), gpu_indices.end(), 0);
+        
+        std::cout << "DEBUG: use gpu" << std::endl;
     }
 #endif  // CUDA_ENABLED
 

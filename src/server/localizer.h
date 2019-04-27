@@ -16,85 +16,95 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef LOCALIZER_H_
-#define LOCALIZER_H_
+#ifndef LOCALIZER2_H
+#define LOCALIZER2_H
 
+#include <future>
+#include <string>
 #include <iostream>
 
-#include "AzureStorageCpplite/storage_credential.h"
-#include "AzureStorageCpplite/storage_account.h"
-#include "AzureStorageCpplite/blob/blob_client.h"
-
-#include "util/misc.h"
-#include "util/option_manager.h"
+#include "server/azure_blob_loader.h"
 #include "server/localization_result.h"
 #include "server/landmark_info.h"
-#include "server/cpprest_import.h"
+#include "feature/extraction.h"
+#include "retrieval/visual_index.h"
+#include "base/database_cache.h"
+#include "util/option_manager.h"
+#include "util/threading.h"
+#include "util/misc.h"
 
 using namespace colmap;
 
 #ifdef CUDA_ENABLED
-const bool kUseOpenGL = false;
+const bool kUseOpenGLx = false;
 #else
-const bool kUseOpenGL = true;
+const bool kUseOpenGLx = true;
 #endif
 
-const std::string MODEL_PATH = "localization/aligned";
-const std::string DATABASE_FILE_NAME = "localization/database.db";
-const std::string LOCALIZATION_IMAGE_REPO = "localization/images";
-const std::string INDEX_FILE_NAME = "localization/index.bin";
-const std::string INDEX_IMAGE_LIST_PATH = "localization/database_image_list.txt";
-const std::string MATCH_IMAGE_LIST_PATH = "localization/query_image_list.txt";
-const std::string LANDMARK_FILE_NAME = "localization/landmarks.json";
+const std::string kModelPath = "localization/aligned";
+const std::string kDatabaseFilename = "localization/database.db";
+const std::string kLocalizationImageRepo = "localization/images";
+const std::string kIndexFilename = "localization/index.bin";
+const std::string kIndexImageListPath = "localization/database_image_list.txt";
+const std::string kMatchImageListPath = "localization/query_image_list.txt";
+const std::string kLandmarkFilename = "localization/landmarks.json";
 
-const std::string AZURE_ACCOUNT_NAME = "5glab";
-const std::string AZURE_ACCOUNT_KEY = "zWdS5g8p0KKbidI2RE5GkkB1fdeMaZ5Bg0XxOzgIyxl39DM+syVXi9LT6BNQHCp01z5kQ3YI420bcMVV9Vm3qw==";
-const std::string BLOB_CONTAINER = "perceptvision";
-const std::string BLOB_PREFIX = "pictures/";
-const std::string BLOB_SUFFIX = ".JPG";
-const int AZURE_MAX_CONCURRENCY = 10;
-
-
-/**
- * This class handle task of localizing a list of new images in the corresponding venue.
- */
 class Localizer
 {
 public:
-    Localizer(const std::string& venue_name,
-              const std::vector<std::string>& request_image_names);
+    Localizer ( const std::string& venue_name,
+                 const std::shared_ptr<AzureBlobLoader> azure_blob_loader );
 
-    void CalculateLocation(const std::string& camera_model_name,
-                           const std::string& camera_params_csv);
-
-    int CollectStatus() {
-        return finish_status_;
-    }
-    std::string CollectError() {
-        cout << err_.str() << endl;
-        return err_.str();
-    }
-    web::json::value CollectResult();
-
+    std::pair<int, std::string>
+    Localize ( const std::string& camera_model_name,
+               const std::string& camera_params_csv,
+               const std::vector<std::string>& request_image_names );
 private:
-    bool LoadRequestImagesFromAzure();
-    void SetupOptions(const std::string& camera_model_name,
-                           const std::string& camera_params_csv);
-    void SetupLocalFiles();
-    void LocalizeImages();
+
+    // ############## Functions for setup.
+
+    void InitializeOptions();
+
+    bool CheckFilesInOptionsManager ();
+
+    bool CheckVenueFiles();
+
     void FetchLandmarks();
 
-    std::vector<LocalizationResult> localization_results_;
-    std::vector<LandmarkInfo> landmark_infos_;
+    // ############## Functions for localization.
 
+    void GetLocalImageNames ( const std::vector<std::string>& image_names,
+                              std::vector<std::string>* local_image_names );
+
+    bool VerifyCameraParams ( const std::string& camera_model,
+                              const std::string& params );
+
+    // Extract SIFT feature from images in list.
+    void ExtractFeature ( const std::string& camera_model_name,
+                          const std::string& camera_params_csv,
+                          const std::vector<std::string>& image_names );
+
+    // Match new images with registered images.
+    std::vector<image_t> MatchImages ( const std::vector<std::string>& image_names );
+
+    // Register new images in reconstraction.
+    std::vector<LocalizationResult>
+    RegisterImages ( DatabaseCache* database_cache,
+                     const std::vector<image_t> image_ids );
+
+    // Convert vector of localization result into Json.
+    std::string ParseLocalizationResult2(const std::vector<LocalizationResult>& results);
+
+    const std::string venue_name_;
     double scale_to_meter_;
+    std::vector<LandmarkInfo> landmarks_;
 
-    std::string venue_name_;
-    std::vector<std::string> request_image_names_;
-    std::stringstream err_;
-    int finish_status_;
+    std::shared_ptr<AzureBlobLoader> azure_blob_loader_;
+    std::shared_ptr<SiftFeatureExtractor> feature_extractor_;
+
 
     OptionManager options_;
+    retrieval::VisualIndex<> visual_index_;
 };
 
-#endif // LOCALIZER_H_
+#endif // LOCALIZER2_H

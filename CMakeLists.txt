@@ -107,6 +107,9 @@ find_package(Git)
 find_package(CGAL QUIET)
 
 find_package(cpprestsdk REQUIRED)
+find_package(Pistache REQUIRED)
+find_package(RapidJSON REQUIRED)
+find_package(Threads REQUIRED)
 
 set(CUDA_MIN_VERSION "7.0")
 if(CUDA_ENABLED)
@@ -126,6 +129,17 @@ if(CGAL_FOUND)
     message(STATUS "Found CGAL")
     message(STATUS "  Includes : ${CGAL_INCLUDE_DIRS}")
     message(STATUS "  Libraries : ${CGAL_LIBRARY}")
+endif()
+
+if(Pistache_FOUND)
+    message(STATUS "Found Pistache")
+    message(STATUS "  Includes : ${Pistache_INCLUDE_DIRS}")
+    message(STATUS "  Libraries : ${Pistache_LIBRARIES}")
+endif()
+
+if(RapidJSON_FOUND)
+    message(STATUS "Found RapidJSON")
+    message(STATUS "  Includes : ${RapidJSON_INCLUDE_DIRS}")
 endif()
 
 ################################################################################
@@ -265,6 +279,8 @@ set(COLMAP_INCLUDE_DIRS
     ${Qt5Core_INCLUDE_DIRS}
     ${Qt5OpenGL_INCLUDE_DIRS}
     ${Qt5Widgets_INCLUDE_DIRS}
+    ${Pistache_INCLUDE_DIRS}
+    ${RapidJSON_INCLUDE_DIRS}
 )
 
 set(COLMAP_LINK_DIRS
@@ -285,6 +301,8 @@ set(COLMAP_EXTERNAL_LIBRARIES
     ${Qt5Core_LIBRARIES}
     ${Qt5OpenGL_LIBRARIES}
     ${Qt5Widgets_LIBRARIES}
+    ${Pistache_LIBRARIES}/libpistache.a
+    ${CMAKE_THREAD_LIB_INIT}
 )
 
 if(CGAL_ENABLED)

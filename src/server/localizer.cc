@@ -16,25 +16,233 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "server/localizer.h"
+#include "localizer.h"
 
-#include <QApplication>
-
-#include "util/misc.h"
-#include "base/reconstruction.h"
-#include "base/image_reader.h"
-#include "base/camera_models.h"
-#include "base/database_cache.h"
-#include "feature/extraction.h"
 #include "feature/matching.h"
+#include "base/camera_models.h"
 #include "controllers/incremental_mapper.h"
-#include "server/cpprest_import.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/document.h"
 
-bool VerifyCameraParams ( const std::string& camera_model,
-                          const std::string& params )
+using namespace rapidjson;
+
+Localizer::Localizer ( const std::string& venue_name,
+                         const std::shared_ptr<AzureBlobLoader> azure_blob_loader )
+    :venue_name_ ( EnsureTrailingSlash ( venue_name ) ), azure_blob_loader_ ( azure_blob_loader )
+{
+    std::cout << "Initializing localizer for " << venue_name << std::endl;
+
+    InitializeOptions();
+
+    PrintHeading2 ( "Check files for "+venue_name_ );
+    if ( !CheckVenueFiles() ) {
+        throw "Files are missing.";
+    } else {
+        std::cout << "  Done" << std::endl;
+    }
+
+    PrintHeading2 ( "Loading landmarks" );
+    FetchLandmarks();
+    std::cout << "  Done" << std::endl;
+
+    // TODO setup feature extraction cache
+    // TODO setup feature matching cache
+    // TODO setup database cache
+    // TODO setup reconstruction
+
+}
+
+void Localizer::InitializeOptions()
+{
+    options_.AddImageOptions();
+    options_.AddVocabTreeMatchingOptions();
+    options_.AddMapperOptions();
+    // Database.
+    *options_.database_path = venue_name_+kDatabaseFilename;
+    // Image reader options.
+    options_.image_reader->single_camera = true;
+    options_.image_reader->database_path = *options_.database_path;
+    options_.image_reader->image_path = venue_name_+kLocalizationImageRepo;
+    // Vocab tree matching options.
+    options_.vocab_tree_matching->num_images = 10;
+    options_.vocab_tree_matching->vocab_tree_path = venue_name_+kIndexFilename;
+    options_.vocab_tree_matching->index_list_path = venue_name_+kIndexImageListPath;
+}
+
+bool Localizer::CheckVenueFiles()
+{
+    bool valid = true;
+    if ( !CheckFilesInOptionsManager() ) {
+        valid = false;
+    }
+    if ( !ExistsDir ( venue_name_+kModelPath ) ) {
+        std::cerr << "Model directory not found at" << std::endl
+                  << "\t" << venue_name_+kModelPath << std::endl;
+        valid = false;
+    }
+    if ( !ExistsFile ( venue_name_+kLandmarkFilename ) ) {
+        std::cerr << "Landmark file not found at" << std::endl
+                  << "\t" << venue_name_+kLandmarkFilename << std::endl;
+        valid = false;
+    }
+
+    return valid;
+}
+
+bool Localizer::CheckFilesInOptionsManager()
+{
+    bool valid = true;
+    if ( !ExistsFile ( *options_.database_path ) ) {
+        std::cerr << "Database file not found at" << std::endl
+                  << "\t" << *options_.database_path << std::endl;
+        valid = false;
+    }
+    if ( !ExistsFile ( options_.vocab_tree_matching->vocab_tree_path ) ) {
+        std::cerr << "Vocabulary tree (index file) not found at" << std::endl
+                  << "\t" << options_.vocab_tree_matching->vocab_tree_path << std::endl;
+        valid = false;
+    }
+    if ( !ExistsFile ( options_.vocab_tree_matching->index_list_path ) ) {
+        std::cerr << "Database image list file not found at" << std::endl
+                  << "\t" << options_.vocab_tree_matching->index_list_path << std::endl;
+        valid = false;
+    }
+    return valid;
+}
+
+void Localizer::FetchLandmarks()
+{
+    boost::property_tree::ptree ptree;
+    // Parse landmark json file to property tree.
+    boost::property_tree::read_json ( venue_name_+kLandmarkFilename, ptree );
+
+    if ( ptree.count ( "scale_to_meter" ) == 0 ) {
+        scale_to_meter_ = 1.0;
+    } else {
+        scale_to_meter_ = ptree.get<double> ( "scale_to_meter" );
+    }
+
+    landmarks_.clear();
+    // Translate property tree to landmark info.
+    for ( const auto& landmark_pt : ptree.get_child ( "landmarks" ) ) {
+        std::string landmark_name = landmark_pt.second.get<string> ( "name" );
+        double landmark_pos_x = landmark_pt.second.get<double> ( "x" );
+        double landmark_pos_y = landmark_pt.second.get<double> ( "y" );
+        double landmark_pos_z = landmark_pt.second.get<double> ( "z" );
+        landmarks_.emplace_back ( landmark_name, landmark_pos_x, landmark_pos_y, landmark_pos_z );
+    }
+}
+
+std::pair<int, std::string>
+Localizer::Localize ( const std::string& camera_model_name,
+                        const std::string& camera_params_csv,
+                        const std::vector<std::string>& image_names )
+{
+    // Stop if no image to process.
+    if ( image_names.size() == 0 ) {
+        std::cout << "No image to estimate" << std::endl;
+        return std::make_pair ( EXIT_FAILURE, "" );
+    }
+
+    // Stop if camera model is invalid.
+    if ( !VerifyCameraParams ( camera_model_name, camera_params_csv ) ) {
+        std::cout << "Camera model is not valid" << std::endl;
+        return std::make_pair ( EXIT_FAILURE, "" );
+    }
+    PrintMemoryUsage();
+
+    // load images
+    PrintHeading2 ( "Downloading images" );
+    std::vector<std::string> local_image_names;
+    GetLocalImageNames ( image_names, &local_image_names );
+    std::future<void> download_future = std::async ( std::launch::async, &AzureBlobLoader::LoadRequestImages, azure_blob_loader_, image_names, local_image_names );
+    download_future.get();
+    std::cout << "  Done" << std::endl;
+    PrintMemoryUsage();
+
+    // feature extraction
+    PrintHeading2 ( "Extracting features" );
+    ExtractFeature ( camera_model_name, camera_params_csv, image_names );
+    std::cout << "  Done" << std::endl;
+    PrintMemoryUsage();
+
+    // matching
+    PrintHeading2 ( "Matching images" );
+    std::vector<image_t> image_ids = MatchImages ( image_names );
+    std::cout << "  Done" << std::endl;
+    PrintMemoryUsage();
+
+    // load databbase cache
+    PrintHeading2 ( "Loading database" );
+    Database database ( *options_.database_path );
+    DatabaseCache database_cache;
+    {
+        Timer timer;
+        timer.Start();
+        const size_t min_num_matches =
+            static_cast<size_t> ( options_.mapper->min_num_matches );
+        database_cache.Load ( database, min_num_matches,options_.mapper->ignore_watermarks, options_.mapper->image_names );
+        std::cout << std::endl;
+        timer.PrintMinutes();
+        std::cout << std::endl;
+    }
+
+    // registration
+    PrintHeading2 ( "Registering images" );
+    std::vector<LocalizationResult> results =
+        RegisterImages ( &database_cache, image_ids );
+    std::cout << "  Done" << std::endl;
+    PrintMemoryUsage();
+
+    // clean up database TODO this should be avoid.
+    PrintHeading2 ( "Cleaning database" );
+    std::unordered_set<camera_t> clean_up_camera_ids;
+    for ( const image_t image_id : image_ids ) {
+        std::cout << "Deleting image " << image_id << std::endl;
+        const Image& image = database.ReadImage ( image_id );
+        clean_up_camera_ids.insert ( image.CameraId() );
+
+        database.DeleteImage ( image_id );
+        for ( const auto& image : database_cache.Images() ) {
+            if ( database.ExistsMatches ( image_id, image.first ) ) {
+                database.DeleteMatches ( image_id, image.first );
+                if ( database.ExistsInlierMatches ( image_id, image.first ) ) {
+                    database.DeleteInlierMatches ( image_id, image.first );
+                }
+            }
+        }
+    }
+    for ( const camera_t camera_id : clean_up_camera_ids ) {
+        std::cout << "Deleting camera " << camera_id << std::endl;
+        database.DeleteCamera ( camera_id );
+    }
+    database.Close();
+    std::cout << "  Done" << std::endl;
+    PrintMemoryUsage();
+
+    // parse result to json
+    //web::json::value json_results = ParseLocalizationResult ( results );
+    string json_string = ParseLocalizationResult2 ( results );
+    return std::make_pair ( EXIT_SUCCESS, json_string );
+}
+
+void Localizer::GetLocalImageNames (
+    const std::vector<std::string>& image_names,
+    std::vector<std::string>* local_image_names )
+{
+    for ( const std::string& image_name : image_names ) {
+        std::string local_image_name = EnsureTrailingSlash ( venue_name_ ) + EnsureTrailingSlash ( kLocalizationImageRepo ) + image_name;
+        local_image_names->emplace_back ( local_image_name );
+        std::cout << " => " << local_image_name << std::endl;
+    }
+}
+
+bool Localizer::VerifyCameraParams ( const std::string& camera_model,
+                                      const std::string& params )
 {
     if ( !ExistsCameraModelWithName ( camera_model ) ) {
-        std::cerr << "ERROR: Unknown camera model." << std::endl;
+        std::cerr << "ERROR: Camera model does not exist" << std::endl;
         return false;
     }
 
@@ -43,356 +251,124 @@ bool VerifyCameraParams ( const std::string& camera_model,
 
     if ( camera_params.size() > 0 &&
             !CameraModelVerifyParams ( camera_model_id, camera_params ) ) {
-        std::cerr << "ERROR: Invalid camera parameters." << std::endl;
+        std::cerr << "ERROR: Invalid camera parameters" << std::endl;
         return false;
     }
     return true;
 }
 
-bool CheckFilesInOptionManager ( std::stringstream& err_, const OptionManager& options )
-{
-    bool valid = true;
-    if ( !ExistsFile ( *options.database_path ) ) {
-        err_ << "Database file not found at" << endl
-             << "\t" << *options.database_path << endl;
-        valid = false;
-    }
-    if ( !ExistsFile ( options.vocab_tree_matching->vocab_tree_path ) ) {
-        err_ << "Vocabulary tree (index file) not found at" << endl
-             << "\t" << options.vocab_tree_matching->vocab_tree_path << endl;
-        valid = false;
-    }
-    if ( !ExistsFile ( options.vocab_tree_matching->index_list_path ) ) {
-        err_ << "Database image list file not found at" << endl
-             << "\t" << options.vocab_tree_matching->index_list_path << endl;
-        valid = false;
-    }
-    if ( !ExistsFile ( options.vocab_tree_matching->match_list_path ) ) {
-        err_ << "Query image list file not found at" << endl
-             << "\t" << options.vocab_tree_matching->match_list_path << endl;
-        valid = false;
-    }
-    return valid;
-}
-
-void CopyImageNamesToQueryListFile ( const std::string& query_file_name,
-                                     const std::vector<std::string>& image_names )
-{
-    std::ofstream query_file ( query_file_name, std::ofstream::trunc );
-    for ( const auto& image_name : image_names ) {
-        query_file << image_name << std::endl;
-    }
-    query_file.close();
-}
-
-inline std::string GetBlobImageName ( const std::string& request_image_name )
-{
-    return EnsureTrailingSlash ( BLOB_PREFIX ) + request_image_name ;
-}
-
-inline std::string GetLocalImagePath ( const std::string& request_image_name, const std::string& venue_name )
-{
-    return EnsureTrailingSlash ( venue_name ) + EnsureTrailingSlash ( LOCALIZATION_IMAGE_REPO ) + request_image_name ;
-}
-
-inline std::string GetLocalImageName ( const std::string& request_image_name )
-{
-    return request_image_name + BLOB_SUFFIX;
-}
-
-Localizer::Localizer ( const std::string& venue_name, const std::vector<std::string>& request_image_names )
-    : venue_name_ ( EnsureTrailingSlash ( venue_name ) ), request_image_names_ ( request_image_names ) {}
-
-void Localizer::CalculateLocation(const std::string& camera_model_name,
-                                  const std::string& camera_params_csv) {
-    cout << "Venue name: " << venue_name_ << endl;
-    // Lording images from Azure Storage.
-    if(!LoadRequestImagesFromAzure()) {
-        cout << "Loading images from Azure failed." << endl;
-        finish_status_ = EXIT_FAILURE;
-        return;
-    }
-
-    // Prepare COLMAP options.
-    SetupOptions(camera_model_name, camera_params_csv);
-
-    // Check and prepare local files.
-    SetupLocalFiles();
-
-    // Register query images in mapper.
-    LocalizeImages();
-
-    // Fetch landmarks.
-    FetchLandmarks();
-}
-
-bool Localizer::LoadRequestImagesFromAzure()
-{
-    // Create Azure storage blob client.
-    std::shared_ptr<azure::storage_lite::shared_key_credential> credential =
-        std::make_shared<azure::storage_lite::shared_key_credential> ( AZURE_ACCOUNT_NAME, AZURE_ACCOUNT_KEY );
-    std::shared_ptr<azure::storage_lite::storage_account> account =
-        std::make_shared<azure::storage_lite::storage_account> ( AZURE_ACCOUNT_NAME, credential, true );
-    std::shared_ptr<azure::storage_lite::blob_client> blob_client =
-        std::make_shared<azure::storage_lite::blob_client> ( account, AZURE_MAX_CONCURRENCY );
-    std::shared_ptr<azure::storage_lite::blob_client_wrapper> blob_client_wrapper =
-        std::make_shared<azure::storage_lite::blob_client_wrapper> ( blob_client );
-    // Make sure blob container exists.
-    assert ( blob_client_wrapper->container_exists ( BLOB_CONTAINER ) );
-    // Download
-    for ( const auto& request_image_name : request_image_names_ ) {
-        std::string blob_image_name = GetBlobImageName ( request_image_name );
-        std::string local_image_path = GetLocalImagePath ( request_image_name, venue_name_ );
-        std::cout << "Download: \"" << blob_image_name << "\" --> "
-                  << "\""<< local_image_path << "\"" << std::endl;
-
-        // Make sure blob exists before downloading.
-        assert ( blob_client_wrapper->blob_exists ( BLOB_CONTAINER, blob_image_name ) );
-        time_t last_modified;
-        blob_client_wrapper->download_blob_to_file ( BLOB_CONTAINER, blob_image_name, local_image_path, last_modified );
-        if(errno != 0) {
-            std::cout << "Download error code: " << errno << std::endl;
-            return false;
-        }
-    }
-    return true;
-}
-
-void Localizer::SetupOptions(const std::string& camera_model_name,
-                             const std::string& camera_params_csv)
-{
-    options_.AddImageOptions();
-    options_.AddVocabTreeMatchingOptions();
-    options_.AddMapperOptions();
-
-    // Add database to options.
-    *options_.database_path = venue_name_+DATABASE_FILE_NAME;
-    // Update image reader options.
-    options_.image_reader->camera_model = camera_model_name;
-    options_.image_reader->camera_params = camera_params_csv;
-    options_.image_reader->single_camera = true;
-    options_.image_reader->database_path = *options_.database_path;
-    options_.image_reader->image_list.clear();
-    for ( const string& request_image_name : request_image_names_ ) {
-        options_.image_reader->image_list.push_back ( request_image_name );
-    }
-    options_.image_reader->image_path = venue_name_+LOCALIZATION_IMAGE_REPO;
-    // Add images to matching options.
-    options_.vocab_tree_matching->num_images = 10;
-    options_.vocab_tree_matching->vocab_tree_path = venue_name_+INDEX_FILE_NAME;
-    options_.vocab_tree_matching->index_list_path = venue_name_+INDEX_IMAGE_LIST_PATH;
-    options_.vocab_tree_matching->match_list_path = venue_name_+MATCH_IMAGE_LIST_PATH;
-}
-
-void Localizer::SetupLocalFiles()
-{
-    if ( !CheckFilesInOptionManager ( err_, options_ ) ) {
-        finish_status_ = EXIT_FAILURE;
-        return;
-    }
-    if ( !ExistsDir ( venue_name_+MODEL_PATH ) ) {
-        err_ << "Model directory not found at" << endl
-             << "\t" << venue_name_+MODEL_PATH << endl;
-        finish_status_ = EXIT_FAILURE;
-        return;
-    }
-    if ( !ExistsFile ( venue_name_+LANDMARK_FILE_NAME ) ) {
-        err_ << "Landmark file not found at" << endl
-             << "\t" << venue_name_+LANDMARK_FILE_NAME << endl;
-        finish_status_ = EXIT_FAILURE;
-        return;
-    }
-    CopyImageNamesToQueryListFile ( options_.vocab_tree_matching->match_list_path,
-                                    options_.image_reader->image_list );
-}
-
-void Localizer::LocalizeImages ()
+void Localizer::ExtractFeature ( const std::string& camera_model_name,
+                                  const std::string& camera_params_csv,
+                                  const std::vector<std::string>& image_names )
 {
     ImageReaderOptions reader_options = *options_.image_reader;
 
-    localization_results_.clear();
-
-    if ( reader_options.image_list.size() == 0 ) {
-        err_ << "No images to estimate" << endl;
-        finish_status_ = EXIT_FAILURE;
-        return;
+    reader_options.camera_model = camera_model_name;
+    reader_options.camera_params = camera_params_csv;
+    reader_options.image_list.clear();
+    for ( const std::string& image_name : image_names ) {
+        reader_options.image_list.emplace_back ( image_name );
     }
 
-    if ( !VerifyCameraParams ( options_.image_reader->camera_model,
-                               options_.image_reader->camera_params ) ) {
-        err_ << "Bad camera parameters" << endl;
-        finish_status_ = EXIT_FAILURE;
-        return;
-    }
-
-    // Extract SIFT features from images in list.
     SiftFeatureExtractor feature_extractor ( reader_options,
             *options_.sift_extraction );
 
-    if ( options_.sift_extraction->use_gpu && kUseOpenGL ) {
+
+    if ( options_.sift_extraction->use_gpu && kUseOpenGLx ) {
         RunThreadWithOpenGLContext ( &feature_extractor );
     } else {
         feature_extractor.Start();
         feature_extractor.Wait();
     }
+}
 
-    // Add all request image names in to a set.
-    std::unordered_set<std::string> request_image_names;
-    request_image_names.insert(reader_options.image_list.begin(),
-                               reader_options.image_list.end());
+std::vector<image_t> Localizer::MatchImages ( const std::vector<std::string>& image_names )
+{
+    VocabTreeMatchingOptions matching_options = *options_.vocab_tree_matching;
 
-    // VocabTree matching to all registered images.
-    VocabTreeFeatureMatcher feature_matcher ( *options_.vocab_tree_matching,
-            *options_.sift_matching,
-            *options_.database_path );
+    matching_options.match_list.clear();
+    for ( const std::string& image_name:image_names ) {
+        matching_options.match_list.emplace_back ( image_name );
+    }
 
-    if ( options_.sift_matching->use_gpu && kUseOpenGL ) {
+    std::vector<image_t> image_ids;
+    VocabTreeFeatureMatcher feature_matcher ( matching_options,
+            *options_.sift_matching, *options_.database_path, &image_ids );
+
+    if ( options_.sift_matching->use_gpu && kUseOpenGLx ) {
         RunThreadWithOpenGLContext ( &feature_matcher );
     } else {
         feature_matcher.Start();
         feature_matcher.Wait();
     }
 
-    // Load database after feature extraction and matching.
-    PrintHeading1 ( "Loading database" );
-    Database database ( *options_.database_path );
-    DatabaseCache database_cache;
-    {
-        Timer timer;
-        timer.Start();
-        const size_t min_num_matches =
-            static_cast<size_t> ( options_.mapper->min_num_matches );
-        database_cache.Load ( database, min_num_matches,
-                              options_.mapper->ignore_watermarks,
-                              options_.mapper->image_names );
-        std::cout << std::endl;
-        timer.PrintMinutes();
-    }
-    std::cout << std::endl;
+    return image_ids;
+}
+
+std::vector<LocalizationResult>
+Localizer::RegisterImages ( DatabaseCache* database_cache,
+                             const std::vector<image_t> image_ids )
+{
+    std::vector<LocalizationResult> results;
 
     Reconstruction reconstruction;
-    reconstruction.Read ( venue_name_+MODEL_PATH );
-    std::cout << "DEBUG: done reading reconstruction" << std::endl;
+    reconstruction.Read ( venue_name_+kModelPath );
 
-    IncrementalMapper mapper ( &database_cache );
-    std::cout << "DEBUG: done create mapper" << std::endl;
+    IncrementalMapper mapper ( database_cache );
     mapper.BeginReconstruction ( &reconstruction );
-    std::cout << "DEBUG: done begin reconstruction" << std::endl;
 
     const auto mapper_options = options_.mapper->Mapper();
 
-    localization_results_.clear();
-    std::cout << "reconstruction images: "<<reconstruction.Images().size()<<std::endl;
-
-    for( const string image_name : request_image_names) {
-        std::cout << "request image: " <<image_name << std::endl;
-    }
-
-    for ( const auto& image : reconstruction.Images() ) {
-        std::cout << "DEBUG: image " << image.second.Name() << std::endl;
-        if(request_image_names.count(image.second.Name()) == 0) {
-            std::cout << "DEBUG: skipped" << std::endl;
-            continue;
-        }
-
-        if ( image.second.IsRegistered() ) {
-            PrintHeading1 ( "Image #" + std::to_string ( image.first ) +
-                            " is registered. Previous pose is assigned." );
-
-            LocalizationResult result ( image.second, true );
-            localization_results_.push_back ( result );
-        } else {
-            PrintHeading1 ( "Registering image #" + std::to_string ( image.first ) + " (" +
-                            std::to_string ( reconstruction.NumRegImages() + 1 ) + ")" );
-
-            std::cout << "  => Image sees " << image.second.NumVisiblePoints3D()
-                      << " / " << image.second.NumObservations() << " points"
-                      << std::endl;
-
-            if ( mapper.RegisterNextImage ( mapper_options, image.first ) ) {
-                std::cout << "  => Succeed" << std::endl;
-                LocalizationResult result ( image.second, true );
-                localization_results_.push_back ( result );
+    for ( const image_t image_id : image_ids ) {
+        if ( reconstruction.ExistsImage ( image_id ) ) {
+            const Image& image = reconstruction.Image ( image_id );
+            if ( image.IsRegistered() ) {
+                PrintHeading1 ( "Image #"+std::to_string ( image_id )+
+                                " is regiestered. Previous pose is assigned." );
+                results.emplace_back ( image, true );
             } else {
-                std::cout << "  => Failed" << std::endl;
-                LocalizationResult result ( image.second, false );
-                localization_results_.push_back ( result );
-            }
-        }
-    }
+                PrintHeading1 ( "Registering image #"+std::to_string ( image_id ) );
 
-    std::cout << "DEBUG: finished registration" << std::endl;
+                std::cout <<"  => Image sees "<<image.NumVisiblePoints3D()
+                          <<" / " <<image.NumObservations() << " points" <<std::endl;
 
-    const bool kDiscardReconstruction = true;
-    mapper.EndReconstruction ( kDiscardReconstruction );
-
-    // Clean up database.
-    std::unordered_set<camera_t> clean_up_camera_ids;
-    for(const string& request_image_name : request_image_names) {
-        std::cout << "Deleting iamge " << request_image_name << std::endl;
-        const Image& request_image = database.ReadImageWithName(request_image_name);
-        clean_up_camera_ids.insert(request_image.CameraId());
-
-        database.DeleteImage ( request_image.ImageId() );
-        for ( const auto& image : reconstruction.Images() ) {
-            if ( database.ExistsMatches ( request_image.ImageId(), image.first ) ) {
-                database.DeleteMatches ( request_image.ImageId(), image.first );
-                if ( database.ExistsInlierMatches ( request_image.ImageId(), image.first ) ) {
-                    database.DeleteInlierMatches ( request_image.ImageId(), image.first );
+                if ( mapper.RegisterNextImage ( mapper_options, image_id ) ) {
+                    std::cout << "  => Succeed" << std::endl;
+                    results.emplace_back ( image, true );
+                } else {
+                    std::cout << "  => Failed" << std::endl;
+                    results.emplace_back ( image, false );
                 }
             }
         }
     }
-    for(const auto& camera_id : clean_up_camera_ids) {
-        std::cout << "Deleting camera " << camera_id << std::endl;
-        database.DeleteCamera(camera_id);
-    }
 
-    database.Close();
+    const bool kDiscardReconstruction = true;
+    mapper.EndReconstruction ( kDiscardReconstruction );
 
-    finish_status_ = EXIT_SUCCESS;
+    return results;
 }
 
-void Localizer::FetchLandmarks()
+std::string Localizer::ParseLocalizationResult2 (
+    const std::vector<LocalizationResult>& results )
 {
-    boost::property_tree::ptree ptree;
-    // Parse landmark json file to property tree.
-    boost::property_tree::read_json ( venue_name_+LANDMARK_FILE_NAME, ptree );
+    using rapidjson::Type;
 
-    if ( ptree.count ( "scale_to_meter" ) == 0 ) {
-        scale_to_meter_ = 1.0;
-    } else {
-        scale_to_meter_ = ptree.get<double> ( "scale_to_meter" );
-    }
+    Document document;
+    document.SetObject();
 
-    landmark_infos_.clear();
-    // Translate property tree to landmark info.
-    for ( const auto& landmark_pt : ptree.get_child ( "landmarks" ) ) {
-        std::string landmark_name = landmark_pt.second.get<string> ( "name" );
-        double landmark_pos_x = landmark_pt.second.get<double> ( "x" );
-        double landmark_pos_y = landmark_pt.second.get<double> ( "y" );
-        double landmark_pos_z = landmark_pt.second.get<double> ( "z" );
-        landmark_infos_.emplace_back ( landmark_name, landmark_pos_x, landmark_pos_y, landmark_pos_z );
+    Value localization_results ( kArrayType );
+    for ( size_t i=0; i<results.size(); i++ ) {
+        localization_results.PushBack (
+            results[i].Scale ( scale_to_meter_ ).AsJSON ( &document ),
+            document.GetAllocator() );
     }
+    document.AddMember("localization_result", localization_results,
+                       document.GetAllocator());
+    
+    StringBuffer buffer;
+    PrettyWriter<StringBuffer> writer(buffer);
+    document.Accept(writer);
+
+    return buffer.GetString();
 }
-
-web::json::value Localizer::CollectResult()
-{
-    web::json::value result = web::json::value::object();
-
-    web::json::value landmark_infos_value = web::json::value::array();
-    for ( size_t i=0; i<landmark_infos_.size(); i++ ) {
-        landmark_infos_value[i] = landmark_infos_[i].Scale ( scale_to_meter_ ).AsJSON();
-    }
-    result["landmark_infos"] = landmark_infos_value;
-
-    web::json::value localization_results_value = web::json::value::array();
-    for ( size_t i=0; i<localization_results_.size(); i++ ) {
-        localization_results_value[i] = localization_results_[i].Scale ( scale_to_meter_ ).AsJSON();
-        cout << localization_results_[i] << endl;
-    }
-    result["localization_result"] = localization_results_value;
-
-    return result;
-}
-

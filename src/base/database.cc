@@ -289,7 +289,8 @@ void Database::Open(const std::string& path) {
 void Database::Close() {
     if (database_ != nullptr) {
         FinalizeSQLStatements();
-        sqlite3_close_v2(database_);
+        //sqlite3_close_v2(database_);
+        std::cout << "DEBUG: close database. " << sqlite3_close(database_) << std::endl;
         database_ = nullptr;
     }
 }

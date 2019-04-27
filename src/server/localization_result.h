@@ -25,16 +25,16 @@
 
 #include "util/types.h"
 #include "base/image.h"
-#include "server/cpprest_import.h"
+#include "rapidjson/document.h"
 
 using namespace std;
 using namespace colmap;
 
-static const string kIMAGE_ID = "image_id";
-static const string kIMAGE_NAME = "image_name";
-static const string kSUCCESS = "success";
-static const string kPROJECT_CENTER = "project_center";
-static const string kVIEW_DIRECTION = "view_direction";
+static const string kImageId = "image_id";
+static const string kImageName = "image_name";
+static const string kSuccess = "success";
+static const string kProjectCenter = "project_center";
+static const string kViewDirection = "view_direction";
 
 /**
  * This class is the holder of localization result using one image.
@@ -61,7 +61,7 @@ public:
                                     viewing_direction_ * scale );
     }
 
-    web::json::value AsJSON() const;
+    rapidjson::Value AsJSON(rapidjson::Document* document) const;
 
 private:
     LocalizationResult ( const image_t image_id, const string image_name, bool success,

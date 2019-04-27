@@ -16,35 +16,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef LANDMARK_INFO_H_
-#define LANDMARK_INFO_H_
+#ifndef RESTSERVER_H
+#define RESTSERVER_H
 
-#include <string>
+#include <pistache/http.h>
+#include <pistache/endpoint.h>
 
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
-#include "rapidjson/document.h"
+#include "server/rest_handler.h"
 
-/**
- * An entity class holding landmark inforamtion.
- */
-class LandmarkInfo
+using namespace Pistache;
+
+class RestServer
 {
 public:
-    LandmarkInfo(const std::string& name, const double x, const double y, const double z)
-        : name_(name), x_(x), y_(y), z_(z) {}
-        
-    inline LandmarkInfo Scale(const double scale){
-        return LandmarkInfo(name_, x_ * scale, y_ * scale, z_ * scale);
-    }
-
-    rapidjson::Value AsJSON(rapidjson::Document* document) const;
-
+    RestServer(int port_num, int thread_num);
+    
+    void Start();
+    
+    void Shutdown();
 private:
-    std::string name_;
-    double x_;
-    double y_;
-    double z_;
+    
+    std::shared_ptr<Http::Endpoint> server_;
 };
 
-#endif // LANDMARK_INFO_H_
+#endif // RESTSERVER_H

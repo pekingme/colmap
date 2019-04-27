@@ -148,6 +148,9 @@ std::vector<std::string> ReadTextFileLines(const std::string& path);
 // Remove an argument from the list of command-line arguments.
 void RemoveCommandLineArgument(const std::string& arg, int* argc, char** argv);
 
+// Print current virtual memory usage and resident set (RAM).
+void PrintMemoryUsage();
+
 ////////////////////////////////////////////////////////////////////////////////
 // Implementation
 ////////////////////////////////////////////////////////////////////////////////

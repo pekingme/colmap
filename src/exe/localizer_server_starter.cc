@@ -34,10 +34,11 @@
 #endif
 
 #include <iostream>
+#include <string>
+#include <signal.h>
+#include <unistd.h>
 
 #include <QApplication>
-
-#include "server/cpprest_import.h"
 
 #include "util/option_manager.h"
 #include "util/misc.h"
@@ -48,45 +49,29 @@
 #include "feature/extraction.h"
 #include "feature/matching.h"
 #include "controllers/incremental_mapper.h"
-#include "server/localizer_server.h"
+#include "server/rest_server.h"
 
 using namespace colmap;
-using namespace utility;
-using namespace web;
 
 int main (int argc, char** argv) {
     
-    // Initialize localizer with socket.
-    utility::string_t port = "34567";
-    if(argc == 2){
-        port = argv[1];
-    }
-    
-    utility::string_t address = "http://128.119.86.65:";
-    address.append(port);
-    
-    uri_builder uri(address);
-    uri.append_path("api");
-    
-    auto addr = uri.to_uri().to_string();
-    
     // Initialize QApplication is OpenGL needed.
     std::unique_ptr<QApplication> app;
-    if(kUseOpenGL) {
+    if(kUseOpenGLx) {
         app.reset(new QApplication(argc, argv));
     }
     
-    std::unique_ptr<LocalizerServer> localizer_server (new LocalizerServer(addr));
-    localizer_server->open().wait();
+    // Create and start server.
+    int port_num = 34567;
+    int thread_num = 2;
+    RestServer server (port_num, thread_num);
     
-    std::cout << utility::string_t("Listening for requests at: ") << addr << std::endl;
-    
-    std::cout << "Press ENTER to exit." << std::endl;
+    server.Start();
     
     std::string line;
-    std::getline(std::cin, line);
+    getline(std::cin, line);
     
-    localizer_server->close().wait();
+    server.Shutdown();
     
     return EXIT_SUCCESS;
 }
