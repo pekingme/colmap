@@ -22,6 +22,7 @@
 #include <future>
 #include <string>
 #include <iostream>
+#include <functional>
 
 #include "server/azure_blob_loader.h"
 #include "server/localization_result.h"
@@ -46,8 +47,6 @@ const std::string kDatabaseFilename = "database.db";
 const std::string kLocalizationImageRepo = "images";
 const std::string kIndexFilename = "index.bin";
 const std::string kIndexImageListPath = "database_image_list.txt";
-// TODO remove handle in another request.
-const std::string kLandmarkFilename = "landmarks.json";
 
 class Localizer
 {
@@ -55,6 +54,12 @@ public:
     Localizer ( const std::string& venue_name, const std::string& area_name,
                 const std::shared_ptr<AzureBlobLoader> azure_blob_loader );
 
+    // Should not block
+    void HandoverRequestProcess(const std::string& camera_model_name, 
+                                const std::string& camera_params_csv, 
+                                const std::vector<std::string>& request_image_names, 
+                                std::function<void(const int, const std::string&)> complete_callback);
+    
     std::pair<int, std::string>
     Localize ( const std::string& camera_model_name,
                const std::string& camera_params_csv,

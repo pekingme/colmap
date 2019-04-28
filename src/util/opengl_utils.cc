@@ -42,7 +42,7 @@ OpenGLContextManager::OpenGLContextManager()
       current_thread_(nullptr),
       make_current_action_(new QAction(this)) {
   CHECK_NOTNULL(QCoreApplication::instance());
-  CHECK_EQ(QCoreApplication::instance()->thread(), QThread::currentThread());
+    CHECK_EQ(QCoreApplication::instance()->thread(), QThread::currentThread());
 
   QSurfaceFormat format;
   format.setDepthBufferSize(24);

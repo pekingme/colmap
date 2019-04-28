@@ -97,6 +97,112 @@ bool Localizer::CheckFilesInOptionsManager()
     return valid;
 }
 
+void Localizer::HandoverRequestProcess ( const std::string& camera_model_name,
+        const std::string& camera_params_csv,
+        const std::vector<std::string>& request_image_names,
+        std::function<void ( const int, const std::string& ) > complete_callback )
+{
+    std::cout << "Handover" << std::endl;
+    // Stop if no image to process.
+    if ( request_image_names.size() == 0 ) {
+        std::cout << "No image to estimate" << std::endl;
+        complete_callback ( EXIT_FAILURE, "No image to estimate" );
+    }
+
+    // Stop if camera model is invalid.
+    if ( !VerifyCameraParams ( camera_model_name, camera_params_csv ) ) {
+        std::cout << "Camera model is not valid" << std::endl;
+        complete_callback ( EXIT_FAILURE, "Camera model is not valid" );
+    }
+
+    // load images
+    PrintHeading2 ( "Downloading images" );
+    std::vector<std::string> local_image_names;
+    GetLocalImageNames ( request_image_names, &local_image_names );
+    std::future<void> download_future = std::async ( std::launch::async, &AzureBlobLoader::LoadRequestImages,
+                                        azure_blob_loader_, request_image_names, local_image_names );
+    download_future.get();
+    std::cout << "  Done" << std::endl;
+
+    // feature extraction, require in main thread to use OpenGL.
+    PrintHeading2 ( "Extracting features" );
+    ExtractFeature ( camera_model_name, camera_params_csv, request_image_names );
+    std::cout << "  Done" << std::endl;
+
+    // matching, require in main thread to use OpenGL.
+    PrintHeading2 ( "Matching images" );
+    std::vector<image_t> image_ids = MatchImages ( request_image_names );
+    std::cout << "  Done" << std::endl;
+
+    // Create a thread to process localization.
+    std::future<void> future = std::async ( std::launch::async, [complete_callback, image_ids, this] {
+        // load databbase cache
+        PrintHeading2 ( "Loading database" );
+        Database database ( *options_.database_path );
+        DatabaseCache database_cache;
+        {
+            Timer timer;
+            timer.Start();
+            const size_t min_num_matches =
+            static_cast<size_t> ( options_.mapper->min_num_matches );
+            database_cache.Load ( database, min_num_matches,options_.mapper->ignore_watermarks, options_.mapper->image_names );
+            std::cout << std::endl;
+            timer.PrintMinutes();
+            std::cout << std::endl;
+        }
+
+        // registration
+        PrintHeading2 ( "Registering images" );
+        std::vector<LocalizationResult> results =
+        RegisterImages ( &database_cache, image_ids );
+        std::cout << "  Done" << std::endl;
+
+        // clean up database.
+        PrintHeading2 ( "Cleaning database" );
+        std::unordered_set<camera_t> clean_up_camera_ids;
+        for ( const image_t image_id : image_ids )
+        {
+            std::cout << "Deleting image " << image_id << std::endl;
+            const Image& image = database.ReadImage ( image_id );
+            clean_up_camera_ids.insert ( image.CameraId() );
+
+            database.DeleteImage ( image_id );
+            for ( const auto& image : database_cache.Images() ) {
+                if ( database.ExistsMatches ( image_id, image.first ) ) {
+                    database.DeleteMatches ( image_id, image.first );
+                    if ( database.ExistsInlierMatches ( image_id, image.first ) ) {
+                        database.DeleteInlierMatches ( image_id, image.first );
+                    }
+                }
+            }
+        }
+        for ( const camera_t camera_id : clean_up_camera_ids )
+        {
+            std::cout << "Deleting camera " << camera_id << std::endl;
+            database.DeleteCamera ( camera_id );
+        }
+        database.Close();
+        std::cout << "  Done" << std::endl;
+
+        // parse result to json
+        string json_string = ParseLocalizationResult ( results );
+        complete_callback(EXIT_SUCCESS, json_string);
+    } );
+
+    // Create a thread to check timeout.
+    std::async ( std::launch::async, [complete_callback, &future] {
+        std::chrono::seconds process_duration ( 30 );
+
+        if ( future.wait_for ( process_duration ) == std::future_status::timeout )
+        {
+            complete_callback ( EXIT_FAILURE, "Server timeout (30 seconds)" );
+        }
+    } );
+}
+
+
+
+
 std::pair<int, std::string>
 Localizer::Localize ( const std::string& camera_model_name,
                       const std::string& camera_params_csv,
@@ -219,7 +325,7 @@ void Localizer::ExtractFeature ( const std::string& camera_model_name,
 {
     std::cout << camera_model_name<<std::endl;
     std::cout << camera_params_csv<<std::endl;
-    
+
     ImageReaderOptions reader_options = *options_.image_reader;
 
     reader_options.camera_model = camera_model_name;

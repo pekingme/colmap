@@ -21,6 +21,7 @@
 #include "util/misc.h"
 
 #include <boost/algorithm/string.hpp>
+#include <QApplication>
 
 #include <string>
 #include <vector>
@@ -107,22 +108,15 @@ void RestHandler::ProcessLocalization ( const std::unordered_map<std::string, st
 
     // Localize images.
     std::shared_ptr<Localizer> localizer = localizers_.at ( venue_name ).at ( area_name );
-    std::future<std::pair<int, std::string>> future = std::async ( std::launch::async,
-                                          &Localizer::Localize, localizer, camera_model_name,
-                                          camera_params_csv, image_names );
-
-    std::chrono::seconds process_duration ( 30 );
-
-    if ( future.wait_for ( process_duration ) == std::future_status::timeout ) {
-        response->send ( Http::Code::Ok, "Server timeout (30 seconds)" );
-    } else {
-        std::pair<int, std::string> result = future.get();
-        if ( result.first == EXIT_FAILURE ) {
-            response->send ( Http::Code::Internal_Server_Error, "Cannot localized" );
-        } else {
-            response->send ( Http::Code::Ok, result.second, MIME ( Application, Json ) );
+    localizer->HandoverRequestProcess(camera_model_name, camera_params_csv,image_names,
+                                      [response](const int result_code, const string& response_content){
+        std::cout << result_code << ": " << response_content << std::endl;
+        if(result_code == EXIT_FAILURE){
+            response->send(Http::Code::Internal_Server_Error, response_content);
+        }else{
+            response->send(Http::Code::Ok, response_content);
         }
-    }
+    });
 }
 
 // url: /api/func/Wayfinding/venue/***/area/***/location/***/destination/***/
@@ -153,8 +147,8 @@ void RestHandler::ProcessWayfinding ( const std::unordered_map<std::string, std:
     }
 
     // Calculating path
-    std::shared_ptr<Wayfinder> wayfinder = wayfinders_.at(venue_name).at(area_name);
-    
-    
-    response->send(Http::Code::Internal_Server_Error, "Not implemented");
+    std::shared_ptr<Wayfinder> wayfinder = wayfinders_.at ( venue_name ).at ( area_name );
+
+
+    response->send ( Http::Code::Internal_Server_Error, "Not implemented" );
 }
