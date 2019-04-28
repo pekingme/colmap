@@ -36,7 +36,8 @@ using namespace colmap;
 const std::string kAzureAccountName = "5glab";
 const std::string kAzureAccountKey = "zWdS5g8p0KKbidI2RE5GkkB1fdeMaZ5Bg0XxOzgIyxl39DM+syVXi9LT6BNQHCp01z5kQ3YI420bcMVV9Vm3qw==";
 const std::string kBlobContainer = "perceptvision";
-const std::string kBlobPrefix = "pictures/";
+const std::string kPictureBlobPrefix = "pictures/";
+const std::string kGraphBlobPrefix = "localizer_data/";
 const int kAzureMaxConcurrency = 10;
 
 /**
@@ -49,10 +50,12 @@ public:
 
     void LoadRequestImages(const std::vector<std::string>& image_names, 
                            const std::vector<std::string>& local_image_names);
+    
+    void LoadAreaGraph(const std::string& graph_name,
+                       const std::string& graph_local_name);
 
 private:    
     std::shared_ptr<azure::storage_lite::blob_client_wrapper> blob_client_wrapper_;
-    std::vector<std::future<void>> futures_;
 };
 
 #endif // AZUREBLOBLOADER_H

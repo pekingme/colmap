@@ -40,14 +40,13 @@ void AzureBlobLoader::LoadRequestImages (
     const std::vector<std::string>& local_image_names )
 {
     assert ( image_names.size() == local_image_names.size() );
-    futures_.clear();
+    std::vector<std::future<void>> futures;
 
     for ( size_t i=0; i<image_names.size(); i++ ) {
         std::cout << "Donwload image " << image_names[i] << std::endl;
-        std::string blob_image_name = EnsureTrailingSlash ( kBlobPrefix ) + image_names[i];
+        std::string blob_image_name = EnsureTrailingSlash ( kPictureBlobPrefix ) + image_names[i];
         std::string local_image_name = local_image_names[i];
-        std::future<void> future = std::async ( std::launch::async,
-        [this, blob_image_name, local_image_name] {
+        std::future<void> future = std::async ( std::launch::async, [this, blob_image_name, local_image_name] {
             // Make sure blob exists before downloading.
             assert ( blob_client_wrapper_->blob_exists ( kBlobContainer, blob_image_name ) );
             time_t last_modified;
@@ -60,17 +59,36 @@ void AzureBlobLoader::LoadRequestImages (
                 << "\""<< local_image_name << "\"" << std::endl;
             }
         } );
-        futures_.emplace_back ( std::move(future) );
+        futures.emplace_back ( std::move ( future ) );
     }
 
     for ( size_t i=0; i<image_names.size(); i++ ) {
-        if ( futures_[i].valid() ) {
+        if ( futures[i].valid() ) {
             std::cout << image_names[i] << " valid" << std::endl;
-            futures_[i].get();
+            futures[i].get();
         } else {
             std::cout << image_names[i] << " invalid" << std::endl;
         }
     }
+}
 
-    futures_.clear();
+void AzureBlobLoader::LoadAreaGraph ( const std::string& graph_name,
+                                      const std::string& graph_local_name )
+{
+    std::cout << "Download graph " <<graph_name<<std::endl;
+    std::string graph_blob_name = EnsureTrailingSlash ( kGraphBlobPrefix )+graph_name;
+    std::future<void> future = std::async ( std::launch::async, [this, graph_blob_name, graph_local_name] {
+        // Make sure blob exists before downloading.
+        assert ( blob_client_wrapper_->blob_exists ( kBlobContainer, graph_blob_name ) );
+        time_t last_modified;
+        blob_client_wrapper_->download_blob_to_file ( kBlobContainer, graph_blob_name, graph_local_name, last_modified );
+        if ( errno != 0 )
+        {
+            std::cout << "Download error code: " << errno << std::endl;
+        } else {
+            std::cout << "Downloaded: \"" << graph_blob_name << "\" --> "
+            << "\""<< graph_local_name << "\"" << std::endl;
+        }
+    } );
+    future.get();
 }

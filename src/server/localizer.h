@@ -41,19 +41,19 @@ const bool kUseOpenGLx = false;
 const bool kUseOpenGLx = true;
 #endif
 
-const std::string kModelPath = "localization/aligned";
-const std::string kDatabaseFilename = "localization/database.db";
-const std::string kLocalizationImageRepo = "localization/images";
-const std::string kIndexFilename = "localization/index.bin";
-const std::string kIndexImageListPath = "localization/database_image_list.txt";
-const std::string kMatchImageListPath = "localization/query_image_list.txt";
-const std::string kLandmarkFilename = "localization/landmarks.json";
+const std::string kModelPath = "aligned";
+const std::string kDatabaseFilename = "database.db";
+const std::string kLocalizationImageRepo = "images";
+const std::string kIndexFilename = "index.bin";
+const std::string kIndexImageListPath = "database_image_list.txt";
+// TODO remove handle in another request.
+const std::string kLandmarkFilename = "landmarks.json";
 
 class Localizer
 {
 public:
-    Localizer ( const std::string& venue_name,
-                 const std::shared_ptr<AzureBlobLoader> azure_blob_loader );
+    Localizer ( const std::string& venue_name, const std::string& area_name,
+                const std::shared_ptr<AzureBlobLoader> azure_blob_loader );
 
     std::pair<int, std::string>
     Localize ( const std::string& camera_model_name,
@@ -93,15 +93,15 @@ private:
                      const std::vector<image_t> image_ids );
 
     // Convert vector of localization result into Json.
-    std::string ParseLocalizationResult2(const std::vector<LocalizationResult>& results);
+    std::string ParseLocalizationResult ( const std::vector<LocalizationResult>& results );
 
     const std::string venue_name_;
+    const std::string area_name_;
     double scale_to_meter_;
     std::vector<LandmarkInfo> landmarks_;
 
     std::shared_ptr<AzureBlobLoader> azure_blob_loader_;
     std::shared_ptr<SiftFeatureExtractor> feature_extractor_;
-
 
     OptionManager options_;
     retrieval::VisualIndex<> visual_index_;

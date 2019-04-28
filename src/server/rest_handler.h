@@ -25,6 +25,7 @@
 #include "pistache/http.h"
 #include "server/azure_blob_loader.h"
 #include "server/localizer.h"
+#include "server/wayfinder.h"
 
 using namespace Pistache;
 using namespace colmap;
@@ -33,17 +34,24 @@ class RestHandler : public Http::Handler
 {
 public:
     RestHandler();
-    
-    HTTP_PROTOTYPE(RestHandler);
-    void onRequest(const Http::Request & request, Http::ResponseWriter response) override;
-    void onTimeout(const Http::Request & request, Http::ResponseWriter response) override;
-    
+
+    HTTP_PROTOTYPE ( RestHandler );
+    void onRequest ( const Http::Request & request, Http::ResponseWriter response ) override;
+    void onTimeout ( const Http::Request & request, Http::ResponseWriter response ) override;
+
 private:
     // Handle picture localization service request.
-    void ProcessLocalization(const std::unordered_map<std::string, std::string>& field_map,
-                             Http::ResponseWriter* response);
+    void ProcessLocalization ( const std::unordered_map<std::string, std::string>& field_map,
+                               Http::ResponseWriter* response );
+    // Handle wayfinding request.
+    void ProcessWayfinding ( const std::unordered_map<std::string, std::string>& field_map,
+                             Http::ResponseWriter* response );
+
+    // venue/area/localizer
+    std::unordered_map<std::string, std::unordered_map<std::string, std::shared_ptr<Localizer>>> localizers_;
+    // venue/area/wayfinder
+    std::unordered_map<std::string, std::unordered_map<std::string, std::shared_ptr<Wayfinder>>> wayfinders_;
     
-    std::unordered_map<string, std::shared_ptr<Localizer>> localizers_;
     std::shared_ptr<AzureBlobLoader> azure_blob_loader_;
 };
 
