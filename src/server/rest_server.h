@@ -21,6 +21,7 @@
 
 #include <pistache/http.h>
 #include <pistache/endpoint.h>
+#include <QApplication>
 
 #include "server/rest_handler.h"
 
@@ -37,6 +38,7 @@ public:
 private:
     
     std::shared_ptr<Http::Endpoint> server_;
+    std::unique_ptr<QApplication> app_;
 };
 
 #endif // RESTSERVER_H

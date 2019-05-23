@@ -54,6 +54,8 @@ void AzureBlobLoader::LoadRequestImages (
             if ( errno != 0 )
             {
                 std::cout << "Download error code: " << errno << std::endl;
+                std::cout << "\"" << blob_image_name << "\" --> "
+                << "\""<< local_image_name << "\"" << std::endl;
             } else {
                 std::cout << "Downloaded: \"" << blob_image_name << "\" --> "
                 << "\""<< local_image_name << "\"" << std::endl;

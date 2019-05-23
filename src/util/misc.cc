@@ -106,8 +106,27 @@ void CreateDirIfNotExists ( const std::string& path )
     if ( !ExistsDir ( path ) ) {
         const std::string base_path = GetParentDir ( path );
         CreateDirIfNotExists ( base_path );
-        CHECK ( boost::filesystem::create_directory ( path ) );
+        boost::filesystem::create_directory ( path );
+        CHECK ( ExistsDir ( path ) );
     }
+}
+
+std::string GenerateRandomString ( const int length )
+{
+    static const char alphanum[] = "1234567890"
+                                   "QWERTYUIOPASDFGHJKLZXCVBNM"
+                                   "qwertyuiopasdfghjklzxcvbnm";
+
+    std::string result = "";
+    for ( int i=0; i<length; i++ ) {
+        result.push_back ( alphanum[rand() % ( sizeof ( alphanum )-1 )] );
+    }
+    return result;
+}
+
+std::string GetWorkingDirectory()
+{
+    return boost::filesystem::current_path().string();
 }
 
 std::string GetPathBaseName ( const std::string& path )
@@ -225,12 +244,16 @@ size_t GetFileSize ( const std::string& path )
     return file.tellg();
 }
 
-void RemoveDirContent ( const std::string& path )
+void RemoveDirContent ( const std::string& path, const bool remove_itself )
 {
     if ( ExistsDir ( path ) ) {
-        for ( auto it = boost::filesystem::directory_iterator ( path );
-                it != boost::filesystem::directory_iterator(); ++it ) {
-            boost::filesystem::remove_all ( *it );
+        if ( remove_itself ) {
+            boost::filesystem::remove_all ( path );
+        } else {
+            for ( auto it = boost::filesystem::directory_iterator ( path );
+                    it != boost::filesystem::directory_iterator(); ++it ) {
+                boost::filesystem::remove_all ( *it );
+            }
         }
     }
 }
@@ -386,7 +409,8 @@ void RemoveCommandLineArgument ( const std::string& arg, int* argc, char** argv 
     }
 }
 
-void PrintMemoryUsage(){
+void PrintMemoryUsage()
+{
     double vm_usage     = 0.0;
     double resident_set = 0.0;
 
@@ -404,8 +428,8 @@ void PrintMemoryUsage(){
     long page_size_kb = sysconf ( _SC_PAGE_SIZE ) / 1024; // in case x86-64 is configured to use 2MB pages
     vm_usage = vsize / 1024.0;
     resident_set = rss * page_size_kb;
-    
-    PrintHeading2("Process memory usage");
+
+    PrintHeading2 ( "Process memory usage" );
     std::cout << "  virtual memory usage: " << vm_usage << std::endl;
     std::cout << "  resident set size: " << resident_set << std::endl;
 }

@@ -30,40 +30,45 @@ using namespace rapidjson;
 class Waypoint;
 class Landmark;
 
-class Landmark{
+class Landmark
+{
 public:
     Landmark() = default;
-    Landmark(const Value& json_value);
+    Landmark ( const Value& json_value );
     long id_;
 private:
     std::string name_;
     std::string description_;
+    std::string category_;
+    bool cross_linked_;
     Eigen::Vector3f position_;
-    
+
     std::vector<long> waypoints_id_;
 };
 
-class Waypoint{
+class Waypoint
+{
 public:
     Waypoint() = default;
-    Waypoint(const Value& json_value);
+    Waypoint ( const Value& json_value );
     long id_;
 private:
     std::string name_;
     Eigen::Vector3f position_;
-    
+
     std::vector<long> landmarks_id_;
     std::vector<long> waypoints_id_;
 };
 
-class Area{
+class Area
+{
 public:
-    Area(const Value& json_value);
+    Area ( const Value& json_value );
 private:
     long id_;
     std::string name_;
     std::vector<std::pair<int, int>> tiles_;
-    
+
     std::vector<long> landmarks_id_;
     std::vector<long> waypoints_id_;
 };
@@ -72,14 +77,22 @@ class BackboneGraph
 {
 public:
     BackboneGraph() = default;
-    BackboneGraph(const std::string& json);
+    BackboneGraph ( const std::string& json );
+
+    std::string ServeJsonString()
+    {
+        return json_string_;
+    }
+
+    float scale_;
 private:
     std::unordered_map<long, Landmark> landmarks_;
     std::unordered_map<long, Waypoint> waypoints_;
     std::vector<Area> areas_;
     Eigen::Vector3f north_vector_;
     float tile_size_;
-    float scale_;
+
+    std::string json_string_;
 };
 
 #endif // BACKBONEGRAPH_H

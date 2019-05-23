@@ -73,6 +73,12 @@ bool ExistsPath(const std::string& path);
 // Create the directory if it does not exist.
 void CreateDirIfNotExists(const std::string& path);
 
+// Generate random alpha-numeric string.
+std::string GenerateRandomString(const int length);
+
+// Return string of the current full path.
+std::string GetWorkingDirectory();
+
 // Extract the base name of a path, e.g., "image.jpg" for "/dir/image.jpg".
 std::string GetPathBaseName(const std::string& path);
 
@@ -102,8 +108,8 @@ std::vector<std::string> GetRecursiveDirList(const std::string& path);
 // Get the size in bytes of a file.
 size_t GetFileSize(const std::string& path);
 
-// Remove all contents in a directory without removing itself.
-void RemoveDirContent(const std::string& path);
+// Remove all contents in a directory with/without removing itself.
+void RemoveDirContent(const std::string& path, const bool remove_itself = false);
 
 // Copy contents in one directory to another.
 size_t CopyDir(const std::string& from_path, const std::string& to_path);

@@ -161,16 +161,6 @@ SiftFeatureExtractor::SiftFeatureExtractor (
                         image_reader_.NumImages(), &database_, writer_queue_.get() ) );
 }
 
-SiftFeatureExtractor::SiftFeatureExtractor (
-    const ImageReaderOptions& reader_options,
-    const SiftExtractionOptions& sift_options,
-    FeatureMatcherCache* feature_matcher_cache )
-    : reader_options_ ( reader_options ),
-      sift_options_ ( sift_options ),
-      feature_matcher_cache_ ( feature_matcher_cache ),
-      image_reader_(reader_options_, feature_matcher_cache_)
-{}
-
 void SiftFeatureExtractor::Run()
 {
     PrintHeading1 ( "Feature extraction" );

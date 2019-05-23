@@ -113,7 +113,7 @@ find_package(Threads REQUIRED)
 
 set(CUDA_MIN_VERSION "7.0")
 if(CUDA_ENABLED)
-    find_package(CUDA ${CUDA_MIN_VERSION} QUIET)
+    find_package(CUDA ${CUDA_MIN_VERSION} )
 endif()
 
 find_package(Qt5 5.4 REQUIRED COMPONENTS Core OpenGL Widgets)

@@ -51,21 +51,27 @@ CorrespondenceGraph::NumCorrespondencesBetweenImages() const {
   return num_corrs_between_images;
 }
 
-void CorrespondenceGraph::Finalize() {
-  for (auto it = images_.begin(); it != images_.end();) {
-    it->second.num_observations = 0;
-    for (auto& corr : it->second.corrs) {
-      corr.shrink_to_fit();
-      if (corr.size() > 0) {
-        it->second.num_observations += 1;
-      }
+void CorrespondenceGraph::Finalize()
+{
+    for ( auto it = images_.begin(); it != images_.end(); ) {
+        it->second.num_observations = 0;
+        for ( auto& corr : it->second.corrs ) {
+            corr.shrink_to_fit();
+            if ( corr.size() > 0 ) {
+                it->second.num_observations += 1;
+            }
+        }
+        if ( it->second.num_observations == 0 ) {
+            images_.erase ( it++ );
+        } else {
+            ++it;
+        }
     }
-    if (it->second.num_observations == 0) {
-      images_.erase(it++);
-    } else {
-      ++it;
-    }
-  }
+}
+
+void CorrespondenceGraph::Clear(){
+    EIGEN_STL_UMAP(image_t, Image)().swap(images_);
+    EIGEN_STL_UMAP(image_pair_t, ImagePair)().swap(image_pairs_);
 }
 
 void CorrespondenceGraph::AddImage(const image_t image_id,

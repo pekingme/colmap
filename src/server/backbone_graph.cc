@@ -17,6 +17,9 @@
  */
 
 #include "backbone_graph.h"
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/prettywriter.h>
 
 Eigen::Vector3f JsonValueToEigenVector3f ( const Value& json )
 {
@@ -61,6 +64,12 @@ BackboneGraph::BackboneGraph ( const std::string& json )
     tile_size_ = document["tileSize"].GetFloat();
     scale_ = document["scale"].GetFloat();
     north_vector_ = JsonValueToEigenVector3f ( document["northVec"] );
+
+    StringBuffer buffer;
+    PrettyWriter<StringBuffer> writer ( buffer );
+    document.Accept ( writer );
+
+    json_string_ = buffer.GetString();
 }
 
 Landmark::Landmark ( const Value& json_value )
@@ -68,12 +77,16 @@ Landmark::Landmark ( const Value& json_value )
     assert ( json_value.HasMember ( "id" ) );
     assert ( json_value.HasMember ( "name" ) );
     assert ( json_value.HasMember ( "description" ) );
+    assert ( json_value.HasMember ( "category" ) );
+    assert ( json_value.HasMember ( "crossLinked" ) );
     assert ( json_value.HasMember ( "position" ) );
     assert ( json_value.HasMember ( "waypointsId" ) );
 
     id_ = json_value["id"].GetInt64();
     name_ = json_value["name"].GetString();
     description_ = json_value["description"].GetString();
+    category_ = json_value["category"].GetString();
+    cross_linked_ = json_value["crossLinked"].GetBool();
     position_ = JsonValueToEigenVector3f ( json_value["position"] );
 
     assert ( json_value["waypointsId"].IsArray() );
@@ -113,16 +126,14 @@ Area::Area ( const rapidjson::Value& json_value )
 {
     assert ( json_value.HasMember ( "id" ) );
     assert ( json_value.HasMember ( "name" ) );
-    assert ( json_value.HasMember ( "tileXList" ) );
-    assert ( json_value.HasMember ( "tileYList" ) );
+    assert ( json_value.HasMember ( "tilesList" ) );
     assert ( json_value.HasMember ( "waypointsId" ) );
     assert ( json_value.HasMember ( "landmarksId" ) );
 
     id_ = json_value["id"].GetInt64();
     name_ = json_value["name"].GetString();
 
-    assert ( json_value["tileXList"].IsArray() );
-    assert ( json_value["tileYList"].IsArray() );
+    assert ( json_value["tilesList"].IsArray() );
     assert ( json_value["waypointsId"].IsArray() );
     assert ( json_value["landmarksId"].IsArray() );
 
@@ -134,10 +145,9 @@ Area::Area ( const rapidjson::Value& json_value )
     for ( SizeType i=0; i<landmarks_id_v.Size(); i++ ) {
         landmarks_id_.emplace_back ( landmarks_id_v[i].GetInt64() );
     }
-    const Value& tile_x_v = json_value["tileXList"];
-    const Value& tile_y_v = json_value["tileYList"];
-    assert ( tile_x_v.Size() == tile_y_v.Size() );
-    for ( SizeType i=0; i<tile_x_v.Size(); i++ ) {
-        tiles_.emplace_back(std::make_pair(tile_x_v[i].GetInt(), tile_y_v[i].GetInt()));
+    const Value& tile_list_v = json_value["tilesList"];
+    for ( SizeType i=0; i<tile_list_v.Size(); i++ ) {
+        tiles_.emplace_back ( std::make_pair ( tile_list_v[i]["indexX"].GetInt(),
+                                               tile_list_v[i]["indexZ"].GetInt() ) );
     }
 }

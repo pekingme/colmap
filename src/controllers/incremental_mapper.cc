@@ -758,6 +758,7 @@ void IncrementalMapperController::ReconstructSegment (
         mapper.BeginReconstruction ( &reconstruction );
 
         if ( kSegmentReconstructionEnabled && reconstruction_manager_->Size() > 1 ) {
+            // Inherit camera from previous reconstruction segment, or not.
             //mapper.CopyCamerasFrom ( reconstruction_manager_->Get ( 0 ) );
         }
 

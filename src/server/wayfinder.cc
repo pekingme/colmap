@@ -17,6 +17,8 @@
  */
 
 #include "wayfinder.h"
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/prettywriter.h>
 
 Wayfinder::Wayfinder ( const std::string& venue_name, const std::string& area_name,
                        const std::shared_ptr<AzureBlobLoader> azure_blob_loader )
@@ -27,7 +29,7 @@ Wayfinder::Wayfinder ( const std::string& venue_name, const std::string& area_na
 
     // load graph json file.
     PrintHeading2 ( "Downloading graph" );
-    std::string graph_name = venue_name_+area_name_+kGraphFileName;
+    std::string graph_name = venue_name_+area_name_+kGraphServingGraphFilename;
     std::future<void> download_future = std::async ( std::launch::async, &AzureBlobLoader::LoadAreaGraph,
                                         azure_blob_loader_, graph_name, graph_name );
     download_future.get();
@@ -38,4 +40,11 @@ Wayfinder::Wayfinder ( const std::string& venue_name, const std::string& area_na
     std::string graph_json ( ( std::istreambuf_iterator<char> ( graph_json_file ) ),
                              ( std::istreambuf_iterator<char>() ) );
     graph_ = BackboneGraph ( graph_json );
+}
+
+void Wayfinder::HandoverRequestProcess ( std::function<void ( const std::string & ) > complete_callback )
+{
+    std::cout << "Serving graph in JSON" << std::endl;
+
+    complete_callback ( graph_.ServeJsonString() );
 }

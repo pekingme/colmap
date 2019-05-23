@@ -27,6 +27,7 @@
 #include "server/azure_blob_loader.h"
 #include "server/localization_result.h"
 #include "server/landmark_info.h"
+#include "server/constants.h"
 #include "feature/extraction.h"
 #include "retrieval/visual_index.h"
 #include "base/database_cache.h"
@@ -35,18 +36,6 @@
 #include "util/misc.h"
 
 using namespace colmap;
-
-#ifdef CUDA_ENABLED
-const bool kUseOpenGLx = false;
-#else
-const bool kUseOpenGLx = true;
-#endif
-
-const std::string kModelPath = "aligned";
-const std::string kDatabaseFilename = "database.db";
-const std::string kLocalizationImageRepo = "images";
-const std::string kIndexFilename = "index.bin";
-const std::string kIndexImageListPath = "database_image_list.txt";
 
 class Localizer
 {
@@ -59,11 +48,6 @@ public:
                                 const std::string& camera_params_csv, 
                                 const std::vector<std::string>& request_image_names, 
                                 std::function<void(const int, const std::string&)> complete_callback);
-    
-    std::pair<int, std::string>
-    Localize ( const std::string& camera_model_name,
-               const std::string& camera_params_csv,
-               const std::vector<std::string>& request_image_names );
 private:
 
     // ############## Functions for setup.

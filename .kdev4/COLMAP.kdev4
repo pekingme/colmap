@@ -33,7 +33,7 @@ Executable=file:///home/haodong/KDevelop-Workspace/COLMAP
 External Terminal=konsole --noclose --workdir %workdir -e %exe
 Project Target=COLMAP,src,exe,localizer_server_starter
 Use External Terminal=false
-Working Directory=file:///home/haodong/COLMAP-Workspace
+Working Directory=file:///home/haodong/Map-Workspace/
 isExecutable=false
 
 [MakeBuilder]

@@ -16,33 +16,36 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef WAYFINDER_H
-#define WAYFINDER_H
-
-#include <string>
+#ifndef CAMERACALIBRATOR_H
+#define CAMERACALIBRATOR_H
 
 #include "server/azure_blob_loader.h"
-#include "server/backbone_graph.h"
 #include "server/constants.h"
+#include "util/option_manager.h"
+#include "base/database_cache.h"
+#include "controllers/incremental_mapper.h"
 
 using namespace colmap;
 
-class Wayfinder
+class CameraCalibrator
 {
 public:
-    Wayfinder ( const std::string& venue_name, const std::string& area_name,
-                const std::shared_ptr<AzureBlobLoader> azure_blob_loader );
+    CameraCalibrator(const std::shared_ptr<AzureBlobLoader> azure_blob_loader);
     
-    // Should not block
-    void HandoverRequestProcess(std::function<void(const std::string&)> complete_callback);
-        
+    void HandoverRequestProcess(const std::string& user_name,
+        const std::vector<std::string>& request_image_names,
+        std::function<void(const int, const std::string&)> complete_callback);
+    
 private:
-    const std::string venue_name_;
-    const std::string area_name_;
-
-    BackboneGraph graph_;
-
+    void InitializeParentFolder();
+    void InitializeUser(const std::string user_id, OptionManager* options);
+    
+    void ExtractFeatures(OptionManager* options);
+    void MatchImages(OptionManager* options);
+    void RegisterImages(OptionManager* options, 
+                        ReconstructionManager* reconstruction_manager);
+    
     std::shared_ptr<AzureBlobLoader> azure_blob_loader_;
 };
 
-#endif // WAYFINDER_H
+#endif // CAMERACALIBRATOR_H

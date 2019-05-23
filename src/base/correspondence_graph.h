@@ -90,6 +90,9 @@ public:
     // - Deletes images without observations, as they are useless for SfM.
     // - Shrinks the correspondence vectors to their size to save memory.
     void Finalize();
+    
+    // Clear contain, release memory.
+    void Clear();
 
     // Add new image to the correspondence graph.
     void AddImage(const image_t image_id, const size_t num_points2D);
@@ -150,7 +153,7 @@ private:
     };
 
     EIGEN_STL_UMAP(image_t, Image) images_;
-    std::unordered_map<image_pair_t, ImagePair> image_pairs_;
+    EIGEN_STL_UMAP(image_pair_t, ImagePair) image_pairs_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

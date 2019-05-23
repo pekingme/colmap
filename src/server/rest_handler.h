@@ -24,6 +24,7 @@
 
 #include "pistache/http.h"
 #include "server/azure_blob_loader.h"
+#include "server/camera_calibrator.h"
 #include "server/localizer.h"
 #include "server/wayfinder.h"
 
@@ -40,18 +41,26 @@ public:
     void onTimeout ( const Http::Request & request, Http::ResponseWriter response ) override;
 
 private:
+    void TestMemory ( Http::ResponseWriter* response );
+
     // Handle picture localization service request.
     void ProcessLocalization ( const std::unordered_map<std::string, std::string>& field_map,
                                Http::ResponseWriter* response );
-    // Handle wayfinding request.
-    void ProcessWayfinding ( const std::unordered_map<std::string, std::string>& field_map,
-                             Http::ResponseWriter* response );
+    // Handle graph request.
+    void ServeGraph ( const std::unordered_map<std::string, std::string>& field_map,
+                      Http::ResponseWriter* response );
 
+    // Calibrate user device camera.
+    void CalibrateCamera ( const std::unordered_map<std::string, std::string>& field_map,
+                           Http::ResponseWriter* response );
+
+    // Camera calibrator.
+    std::shared_ptr<CameraCalibrator> camera_calibrator_;
     // venue/area/localizer
     std::unordered_map<std::string, std::unordered_map<std::string, std::shared_ptr<Localizer>>> localizers_;
     // venue/area/wayfinder
     std::unordered_map<std::string, std::unordered_map<std::string, std::shared_ptr<Wayfinder>>> wayfinders_;
-    
+
     std::shared_ptr<AzureBlobLoader> azure_blob_loader_;
 };
 

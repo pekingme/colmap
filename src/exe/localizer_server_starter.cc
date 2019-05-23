@@ -54,7 +54,6 @@
 using namespace colmap;
 
 int main (int argc, char** argv) {
-    
     // Initialize QApplication is OpenGL needed.
     std::unique_ptr<QApplication> app;
     if(kUseOpenGLx) {

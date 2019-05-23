@@ -56,8 +56,12 @@ void RestHandler::onRequest ( const Http::Request& request, Http::ResponseWriter
     if ( request.method() == Http::Method::Get ) {
         if ( field_map["func"] == "PictureLocalization" ) {
             ProcessLocalization ( field_map, &response );
-        } else if ( field_map["func"] == "Wayfinding" ) {
-            ProcessWayfinding ( field_map, &response );
+        } else if ( field_map["func"] == "FetchGraph" ) {
+            ServeGraph ( field_map, &response );
+        } else if ( field_map["func"]=="CalibrateCamera" ) {
+            CalibrateCamera ( field_map, &response );
+        } else {
+            TestMemory ( &response );
         }
     }
 }
@@ -67,6 +71,22 @@ void RestHandler::onTimeout ( const Http::Request& request, Http::ResponseWriter
     UNUSED ( request );
     response.send ( Http::Code::Request_Timeout, "Timeout" )
     .then ( [=] ( ssize_t ) {}, PrintException() );
+}
+
+void TestMemoryInner ( std::function<void() > complete_callback )
+{
+    std::vector<long> junk;
+    for ( int i=0; i<10000000; i++ ) {
+        junk.emplace_back ( i );
+    }
+    complete_callback();
+}
+
+void RestHandler::TestMemory ( Http::ResponseWriter* response )
+{
+    std::async ( std::launch::async, TestMemoryInner, [response] {
+        response->send ( Http::Code::Ok, "Done" );
+    } );
 }
 
 // url: /api/func/PictureLocalization/venue/***/area/***/frame/***/camera_model/***/camera_params/***/
@@ -106,27 +126,33 @@ void RestHandler::ProcessLocalization ( const std::unordered_map<std::string, st
         localizers_[venue_name][area_name] = make_shared<Localizer> ( venue_name, area_name, azure_blob_loader_ );
     }
 
+    for ( auto& pair : localizers_ ) {
+        std::cout << pair.first << std::endl;
+        for ( auto& pair2 : pair.second ) {
+            std::cout << pair2.first << std::endl;
+        }
+    }
+
     // Localize images.
     std::shared_ptr<Localizer> localizer = localizers_.at ( venue_name ).at ( area_name );
-    localizer->HandoverRequestProcess(camera_model_name, camera_params_csv,image_names,
-                                      [response](const int result_code, const string& response_content){
+    localizer->HandoverRequestProcess ( camera_model_name, camera_params_csv,image_names,
+    [response] ( const int result_code, const string& response_content ) {
         std::cout << result_code << ": " << response_content << std::endl;
-        if(result_code == EXIT_FAILURE){
-            response->send(Http::Code::Internal_Server_Error, response_content);
-        }else{
-            response->send(Http::Code::Ok, response_content);
+        if ( result_code == EXIT_FAILURE ) {
+            //response->send(Http::Code::Internal_Server_Error, response_content);
+            response->timeout();
+        } else {
+            response->send ( Http::Code::Ok, response_content );
         }
-    });
+    } );
 }
 
-// url: /api/func/Wayfinding/venue/***/area/***/location/***/destination/***/
-void RestHandler::ProcessWayfinding ( const std::unordered_map<std::string, std::string>& field_map,
-                                      Http::ResponseWriter* response )
+// url: /api/func/FetchGraph/venue/***/area/***/
+void RestHandler::ServeGraph ( const std::unordered_map<std::string, std::string>& field_map,
+                               Http::ResponseWriter* response )
 {
     if ( field_map.find ( "venue" ) == field_map.end()
-            || field_map.find ( "area" ) ==field_map.end()
-            || field_map.find ( "location" ) == field_map.end()
-            || field_map.find ( "destination" ) == field_map.end() ) {
+            || field_map.find ( "area" ) ==field_map.end() ) {
         std::cout << "Bad request" << std::endl;
         response->send ( Http::Code::Bad_Request, "Bad request" )
         .then ( [=] ( ssize_t ) {}, PrintException() );
@@ -135,8 +161,6 @@ void RestHandler::ProcessWayfinding ( const std::unordered_map<std::string, std:
 
     const std::string venue_name = field_map.at ( "venue" );
     const std::string area_name = field_map.at ( "area" );
-    const std::vector<float> location = CSVToVector<float> ( field_map.at ( "location" ) );
-    const long destination = std::stol ( field_map.at ( "destination" ) );
 
     // Create wayfinder if not existed.
     if ( wayfinders_.find ( venue_name ) ==wayfinders_.end() ) {
@@ -146,9 +170,50 @@ void RestHandler::ProcessWayfinding ( const std::unordered_map<std::string, std:
         wayfinders_[venue_name][area_name] = make_shared<Wayfinder> ( venue_name, area_name, azure_blob_loader_ );
     }
 
-    // Calculating path
+    // Serve graph json.
     std::shared_ptr<Wayfinder> wayfinder = wayfinders_.at ( venue_name ).at ( area_name );
+    wayfinder->HandoverRequestProcess ( [response] ( const string& response_content ) {
+        //std::cout << response_content << std::endl;
+        response->send ( Http::Code::Ok, response_content );
+    } );
+}
 
+// url: /api/func/CalibrateCamera/frame/***/
+void RestHandler::CalibrateCamera ( const std::unordered_map<std::string, std::string>& field_map,
+                                    Http::ResponseWriter* response )
+{
+    if ( field_map.find ( "frame" ) == field_map.end() ) {
+        std::cout << "Bad request" << std::endl;
+        response->send ( Http::Code::Bad_Request, "Bad request" )
+        .then ( [=] ( ssize_t ) {}, PrintException() );
+        return;
+    }
 
-    response->send ( Http::Code::Internal_Server_Error, "Not implemented" );
+    const std::string image_csv_names = field_map.at ( "frame" );
+    const std::string user_name = GenerateRandomString ( 10 );
+
+    // Split image names.
+    std::vector<std::string> image_names;
+    boost::split ( image_names, image_csv_names, boost::is_any_of ( "," ) );
+    if ( image_names.empty() ) {
+        response->send ( Http::Code::Ok, "No image to process" );
+        return;
+    }
+
+    // Create camera calibrator instance if not exists.
+    if ( !camera_calibrator_ ) {
+        camera_calibrator_ = std::make_shared<CameraCalibrator>(azure_blob_loader_);
+    }
+
+    // Process camera calibration.
+    camera_calibrator_->HandoverRequestProcess ( user_name, image_names,
+    [response, user_name] ( const int result_code, const string& response_content ) {
+        std::cout << "Camera parameters for " << user_name << std::endl;
+        std::cout << result_code << ": " << response_content << std::endl;
+        if ( result_code == EXIT_FAILURE ) {
+            response->send(Http::Code::Internal_Server_Error, response_content);
+        } else {
+            response->send ( Http::Code::Ok, response_content );
+        }
+    } );
 }

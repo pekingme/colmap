@@ -44,19 +44,19 @@ rapidjson::Value LocalizationResult::AsJSON ( rapidjson::Document* document ) co
     using rapidjson::Type;
 
     Value value ( kObjectType );
-    value.AddMember ( Value ( kImageId.c_str(), document->GetAllocator() ).Move(),
+    value.AddMember ( Value ( kLocResultImageId.c_str(), document->GetAllocator() ).Move(),
                       Value ( image_id_ ).Move(),
                       document->GetAllocator() );
-    value.AddMember ( Value ( kImageName.c_str(), document->GetAllocator() ).Move(),
+    value.AddMember ( Value ( kLocResultImageName.c_str(), document->GetAllocator() ).Move(),
                       Value ( image_name_.c_str(), document->GetAllocator() ).Move(),
                       document->GetAllocator() );
-    value.AddMember ( Value ( kSuccess.c_str(), document->GetAllocator() ).Move(),
+    value.AddMember ( Value ( kLocResultSuccess.c_str(), document->GetAllocator() ).Move(),
                       Value ( success_ ),
                       document->GetAllocator() );
-    value.AddMember ( Value ( kProjectCenter.c_str(), document->GetAllocator() ).Move(),
+    value.AddMember ( Value ( kLocResultProjectCenter.c_str(), document->GetAllocator() ).Move(),
                       Vector3DAsJSON ( projection_center_, document ),
                       document->GetAllocator() );
-    value.AddMember ( Value ( kViewDirection.c_str(), document->GetAllocator() ).Move(),
+    value.AddMember ( Value ( kLocResultViewDirection.c_str(), document->GetAllocator() ).Move(),
                       Vector3DAsJSON ( viewing_direction_, document ),
                       document->GetAllocator() );
 

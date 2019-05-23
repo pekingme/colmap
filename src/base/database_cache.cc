@@ -212,14 +212,15 @@ void DatabaseCache::Load ( const Database& database, const size_t min_num_matche
 void DatabaseCache::Unload ( const bool cameras, const bool images, const bool correspondence_graph )
 {
     if ( cameras ) {
-        cameras_.clear();
+        EIGEN_STL_UMAP ( camera_t, class Camera ) ().swap ( cameras_ );
     }
     if ( images ) {
-        images_.clear();
+        EIGEN_STL_UMAP ( image_t, class Image ) ().swap ( images_ );
     }
     if ( correspondence_graph ) {
-        correspondence_graph_ = colmap::CorrespondenceGraph();
+        correspondence_graph_.Clear();
     }
 }
 
 }  // namespace colmap
+

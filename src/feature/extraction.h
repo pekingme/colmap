@@ -54,10 +54,6 @@ class SiftFeatureExtractor : public Thread {
 public:
     SiftFeatureExtractor(const ImageReaderOptions& reader_options,
                          const SiftExtractionOptions& sift_options);
-    
-    SiftFeatureExtractor(const ImageReaderOptions& reader_options,
-                         const SiftExtractionOptions& sift_options,
-                         FeatureMatcherCache* feature_matcher_cache);
 
 private:
     void Run();

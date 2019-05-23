@@ -93,7 +93,8 @@ class DatabaseCache {
             const std::set<std::string>& image_names);
   
   // Unload everything.
-  void Unload(const bool cameras, const bool images, const bool correspondence_graph);
+  void Unload(const bool cameras = true, const bool images = true, 
+              const bool correspondence_graph = true);
 
  private:
   class CorrespondenceGraph correspondence_graph_;

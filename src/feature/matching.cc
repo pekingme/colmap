@@ -62,11 +62,11 @@ void IndexImagesInVisualIndex(const int num_threads, const int num_checks,
             return;
         }
 
-        Timer timer;
-        timer.Start();
+        //Timer timer;
+        //timer.Start();
 
-        std::cout << StringPrintf("Indexing image [%d/%d]", i + 1, image_ids.size())
-                  << std::flush;
+        //std::cout << StringPrintf("Indexing image [%d/%d]", i + 1, image_ids.size())
+        //          << std::flush;
 
         auto keypoints = cache->GetKeypoints(image_ids[i]);
         auto descriptors = cache->GetDescriptors(image_ids[i]);
@@ -76,7 +76,7 @@ void IndexImagesInVisualIndex(const int num_threads, const int num_checks,
 
         visual_index->Add(index_options, image_ids[i], keypoints, descriptors);
 
-        PrintElapsedTime(timer);
+        //PrintElapsedTime(timer);
     }
 
     // Compute the TF-IDF weights, etc.

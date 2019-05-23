@@ -26,15 +26,10 @@
 #include "util/types.h"
 #include "base/image.h"
 #include "rapidjson/document.h"
+#include "server/constants.h"
 
 using namespace std;
 using namespace colmap;
-
-static const string kImageId = "image_id";
-static const string kImageName = "image_name";
-static const string kSuccess = "success";
-static const string kProjectCenter = "project_center";
-static const string kViewDirection = "view_direction";
 
 /**
  * This class is the holder of localization result using one image.

@@ -19,6 +19,8 @@
 #include "rest_server.h"
 #include "util/misc.h"
 
+#include <QApplication>
+
 using namespace colmap;
 
 RestServer::RestServer ( int port_num, int thread_num )

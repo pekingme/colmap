@@ -10,4 +10,6 @@ COLMAP_ADD_SOURCES(
     rest_server.h rest_server.cc
     wayfinder.h wayfinder.cc
     backbone_graph.h backbone_graph.cc
+    camera_calibrator.h camera_calibrator.cc
+    constants.h
 )
