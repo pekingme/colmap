@@ -66,7 +66,7 @@ IndependentModelMergerController::IndependentModelMergerController(
     // Sparse reconstruction directories. Assume direcotry name "sparse" is used.
     const std::string input_path1 = JoinPaths(options_.workspace_path1, "sparse", "merged-ba");
     const std::string input_path2 = JoinPaths(options_.workspace_path2, "sparse", "merged-ba");
-    output_path_ = JoinPaths(options_.workspace_path, "sparse", "merged_ba");
+    output_path_ = JoinPaths(options_.workspace_path, "sparse", "merged-ba");
     CHECK(ExistsDir(input_path1));
     CHECK(ExistsDir(input_path2));
     CreateDirIfNotExists(output_path_);
@@ -83,6 +83,9 @@ void IndependentModelMergerController::Stop() {
 }
 
 void IndependentModelMergerController::Run() {
+    Timer timer;
+    timer.Start();
+    
     if(IsStopped()) {
         return;
     }
@@ -114,6 +117,9 @@ void IndependentModelMergerController::Run() {
     if(options_.global_ba) {
         RunGlobalBundleAdjuster();
     }
+    
+    PrintHeading2("Summary");
+    timer.PrintMinutes();
 }
 
 void IndependentModelMergerController::RunCopyImages() {
@@ -314,9 +320,6 @@ void IndependentModelMergerController::RunModelMerger() {
 }
 
 void IndependentModelMergerController::RunGlobalBundleAdjuster() {
-    Timer timer;
-    timer.Start();
-
     BundleAdjustmentController ba_controller(option_manager_, &reconstruction1_);
     active_thread_ = &ba_controller;
     ba_controller.Start();

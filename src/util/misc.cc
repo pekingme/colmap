@@ -224,6 +224,16 @@ std::vector<std::string> GetDirList ( const std::string& path )
     return dir_list;
 }
 
+std::vector<std::string> GetDirListNameOnly(const std::string& path){
+    std::vector<std::string> dir_list = GetDirList(path);
+    std::vector<std::string> dir_name_list;
+    for(auto dir : dir_list){
+        boost::filesystem::path path(dir);
+        dir_name_list.emplace_back(path.filename().string());
+    }
+    return dir_name_list;
+}
+
 std::vector<std::string> GetRecursiveDirList ( const std::string& path )
 {
     std::vector<std::string> dir_list;

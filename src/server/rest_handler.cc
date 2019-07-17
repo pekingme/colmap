@@ -60,6 +60,8 @@ void RestHandler::onRequest ( const Http::Request& request, Http::ResponseWriter
             ServeGraph ( field_map, &response );
         } else if ( field_map["func"]=="CalibrateCamera" ) {
             CalibrateCamera ( field_map, &response );
+        } else if ( field_map["func"]=="QueryAreas" ) {
+            QueryAreas ( field_map, &response );
         } else {
             TestMemory ( &response );
         }
@@ -118,7 +120,7 @@ void RestHandler::ProcessLocalization ( const std::unordered_map<std::string, st
         return;
     }
 
-    // Create localizer is not existed.
+    // Create localizer if not existed.
     if ( localizers_.find ( venue_name ) == localizers_.end() ) {
         localizers_[venue_name] = unordered_map<std::string, shared_ptr<Localizer>>();
     }
@@ -202,7 +204,7 @@ void RestHandler::CalibrateCamera ( const std::unordered_map<std::string, std::s
 
     // Create camera calibrator instance if not exists.
     if ( !camera_calibrator_ ) {
-        camera_calibrator_ = std::make_shared<CameraCalibrator>(azure_blob_loader_);
+        camera_calibrator_ = std::make_shared<CameraCalibrator> ( azure_blob_loader_ );
     }
 
     // Process camera calibration.
@@ -211,9 +213,31 @@ void RestHandler::CalibrateCamera ( const std::unordered_map<std::string, std::s
         std::cout << "Camera parameters for " << user_name << std::endl;
         std::cout << result_code << ": " << response_content << std::endl;
         if ( result_code == EXIT_FAILURE ) {
-            response->send(Http::Code::Internal_Server_Error, response_content);
+            response->send ( Http::Code::Internal_Server_Error, response_content );
         } else {
             response->send ( Http::Code::Ok, response_content );
         }
     } );
+}
+
+// url: /api/func/QueryAreas/venue/***/
+void RestHandler::QueryAreas ( const std::unordered_map<std::string, std::string>& field_map,
+        Http::ResponseWriter* response )
+{
+    if ( field_map.find ( "venue" ) == field_map.end() ) {
+        std::cout << "Bad request" << std::endl;
+        response->send ( Http::Code::Bad_Request, "Bad request" )
+        .then ( [=] ( ssize_t ) {}, PrintException() );
+        return;
+    }
+
+    const std::string venue_name = field_map.at ( "venue" );
+    std::vector<std::string> area_names = GetDirListNameOnly ( venue_name );
+    std::string response_content = "";
+    
+    for ( std::string area_name : area_names ) {
+        response_content += area_name+":";
+    }
+    
+    response->send(Http::Code::Ok, response_content.substr(0, response_content.length()-1));
 }

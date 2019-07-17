@@ -111,7 +111,10 @@ void IterativeLocalRefinement ( const IncrementalMapperOptions& options,
 void IterativeGlobalRefinement ( const IncrementalMapperOptions& options,
                                  IncrementalMapper* mapper,
                                  const std::function<void()>& update_func)
-{
+{   
+    Timer timer;
+    timer.Start();
+    
     PrintHeading1 ( "Retriangulation" );
     CompleteAndMergeTracks ( options, mapper );
     std::cout << "  => Retriangulated observations: "
@@ -135,6 +138,9 @@ void IterativeGlobalRefinement ( const IncrementalMapperOptions& options,
             break;
         }
     }
+    
+    mapper->GetReconstruction().NumRegImages();
+    mapper->GetReconstruction().NumPoints3D();
 
     FilterImages ( options, mapper );
 }

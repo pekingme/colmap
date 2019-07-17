@@ -54,6 +54,10 @@ private:
     void CalibrateCamera ( const std::unordered_map<std::string, std::string>& field_map,
                            Http::ResponseWriter* response );
 
+    // Handle area query request.
+    void QueryAreas ( const std::unordered_map<std::string, std::string>& field_map,
+                                    Http::ResponseWriter* response );
+
     // Camera calibrator.
     std::shared_ptr<CameraCalibrator> camera_calibrator_;
     // venue/area/localizer

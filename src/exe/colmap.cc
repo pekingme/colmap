@@ -1141,6 +1141,9 @@ int RunModelOrientationAligner(int argc, char** argv) {
                   << std::endl;
         return EXIT_FAILURE;
     }
+    
+    Timer timer;
+    timer.Start();
 
     Reconstruction reconstruction;
     reconstruction.Read(input_path);
@@ -1179,6 +1182,9 @@ int RunModelOrientationAligner(int argc, char** argv) {
 
     std::cout << "Writing aligned reconstruction..." << std::endl;
     reconstruction.Write(output_path);
+    
+    std::cout << std::endl << "Total processing time: " << std::endl;
+    timer.PrintMinutes();
 
     return EXIT_SUCCESS;
 }

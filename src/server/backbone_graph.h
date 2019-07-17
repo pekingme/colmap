@@ -41,6 +41,7 @@ private:
     std::string description_;
     std::string category_;
     bool cross_linked_;
+    bool enable_in_trial_;
     Eigen::Vector3f position_;
 
     std::vector<long> waypoints_id_;
@@ -54,10 +55,36 @@ public:
     long id_;
 private:
     std::string name_;
+    std::string description_;
     Eigen::Vector3f position_;
 
     std::vector<long> landmarks_id_;
     std::vector<long> waypoints_id_;
+};
+
+class MapRegion
+{
+public:
+    MapRegion ( const Value& json_value );
+private:
+    long id_;
+    std::string name_;
+    std::vector<std::pair<int, int>> tiles_;
+    std::vector<long> landmarks_id_;
+    std::vector<long> waypoints_id_;
+};
+
+class AnnouncedRegion
+{
+public:
+    AnnouncedRegion ( const Value& json_value );
+private:
+    long id_;
+    std::string name_;
+    std::vector<std::pair<int, int>> tiles_;
+    bool is_corridor_;
+    Eigen::Vector3f end1_;
+    Eigen::Vector3f end2_;
 };
 
 class Area
@@ -67,6 +94,9 @@ public:
 private:
     long id_;
     std::string name_;
+    bool is_corridor_;
+    Eigen::Vector3f corridor_end1_;
+    Eigen::Vector3f corridor_end2_;
     std::vector<std::pair<int, int>> tiles_;
 
     std::vector<long> landmarks_id_;
@@ -88,9 +118,12 @@ public:
 private:
     std::unordered_map<long, Landmark> landmarks_;
     std::unordered_map<long, Waypoint> waypoints_;
-    std::vector<Area> areas_;
+    std::vector<MapRegion> map_regions_;
+    std::vector<AnnouncedRegion> announced_regions_;
+    //std::vector<Area> areas_;
     Eigen::Vector3f north_vector_;
     float tile_size_;
+    std::string area_name_;
 
     std::string json_string_;
 };
