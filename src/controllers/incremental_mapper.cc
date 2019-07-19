@@ -139,8 +139,10 @@ void IterativeGlobalRefinement ( const IncrementalMapperOptions& options,
         }
     }
     
-    mapper->GetReconstruction().NumRegImages();
-    mapper->GetReconstruction().NumPoints3D();
+    int numRegImages = mapper->GetReconstruction().NumRegImages();
+    int numMapPoints = mapper->GetReconstruction().NumPoints3D();
+    double duration = timer.ElapsedSeconds();
+    LogTestingData(std::to_string(numRegImages)+","+std::to_string(numMapPoints)+","+std::to_string(duration));
 
     FilterImages ( options, mapper );
 }

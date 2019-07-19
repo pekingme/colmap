@@ -49,6 +49,10 @@ namespace colmap {
 #define STRINGIFY(s) STRINGIFY_(s)
 #define STRINGIFY_(s) #s
 #endif  // STRINGIFY
+    
+// Log a short string in a stationary file.
+// ONLY FOR COLLECTING DATA, REMOVE AFTER IT.
+void LogTestingData(const std::string& content);
 
 // Append trailing slash to string if it does not yet end with a slash.
 std::string EnsureTrailingSlash(const std::string& str);

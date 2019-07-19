@@ -32,12 +32,20 @@
 #include "util/misc.h"
 
 #include <cstdarg>
+#include <fstream>
 
 #include <boost/algorithm/string.hpp>
 
 namespace colmap
 {
-
+    
+void LogTestingData(const std::string& data){
+    std::ofstream outfile;
+    outfile.open("~/Desktop/testing_data.txt",std::ios_base::app);
+    outfile << data << std::endl;
+    outfile.close();
+}
+    
 std::string EnsureTrailingSlash ( const std::string& str )
 {
     if ( str.length() > 0 ) {
