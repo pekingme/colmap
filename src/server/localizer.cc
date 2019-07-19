@@ -28,7 +28,7 @@
 using namespace rapidjson;
 
 Localizer::Localizer ( const std::string& venue_name, const std::string& area_name,
-                       const std::shared_ptr<AzureBlobLoader> azure_blob_loader)
+                       const std::shared_ptr<AzureBlobLoader> azure_blob_loader )
     :venue_name_ ( EnsureTrailingSlash ( venue_name ) ), area_name_ ( EnsureTrailingSlash ( area_name ) ),
      azure_blob_loader_ ( azure_blob_loader )
 {
@@ -97,7 +97,8 @@ bool Localizer::CheckFilesInOptionsManager()
     return valid;
 }
 
-void Localizer::HandoverRequestProcess ( const std::string& camera_model_name,
+void Localizer::HandoverRequestProcess ( const std::string& area_name,
+        const std::string& camera_model_name,
         const std::string& camera_params_csv,
         const std::vector<std::string>& request_image_names,
         std::function<void ( const int, const std::string& ) > complete_callback )
@@ -137,7 +138,7 @@ void Localizer::HandoverRequestProcess ( const std::string& camera_model_name,
     std::cout << "  Done" << std::endl;
 
     // Create a thread to process localization.
-    std::future<void> future = std::async ( std::launch::async, [complete_callback, image_ids, this] {
+    std::future<void> future = std::async ( std::launch::async, [complete_callback, image_ids, area_name, this] {
         // load databbase cache
         PrintHeading2 ( "Loading database" );
         Database database ( *options_.database_path );
@@ -186,12 +187,12 @@ void Localizer::HandoverRequestProcess ( const std::string& camera_model_name,
         database.Close();
         database_cache->Unload();
         delete database_cache;
-        
+
         std::cout << "  Done" << std::endl;
 
         // parse result to json
-        string json_string = ParseLocalizationResult ( results );
-        complete_callback(EXIT_SUCCESS, json_string);
+        string json_string = ParseLocalizationResult ( area_name, results );
+        complete_callback ( EXIT_SUCCESS, json_string );
     } );
 
     // Create a thread to check timeout.
@@ -332,6 +333,7 @@ Localizer::RegisterImages ( DatabaseCache* database_cache,
 }
 
 std::string Localizer::ParseLocalizationResult (
+    const std::string& area_name,
     const std::vector<LocalizationResult>& results )
 {
     using rapidjson::Type;
@@ -345,6 +347,8 @@ std::string Localizer::ParseLocalizationResult (
             results[i].AsJSON ( &document ),
             document.GetAllocator() );
     }
+    document.AddMember ( "area_name", Value ( area_name.c_str(), document.GetAllocator() ).Move(), 
+                         document.GetAllocator() );
     document.AddMember ( "localization_result", localization_results,
                          document.GetAllocator() );
 

@@ -62,7 +62,7 @@ int main (int argc, char** argv) {
     
     // Create and start server.
     int port_num = 34567;
-    int thread_num = 2;
+    int thread_num = 5;
     RestServer server (port_num, thread_num);
     
     server.Start();

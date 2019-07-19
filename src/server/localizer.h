@@ -44,10 +44,12 @@ public:
                 const std::shared_ptr<AzureBlobLoader> azure_blob_loader );
 
     // Should not block
-    void HandoverRequestProcess(const std::string& camera_model_name, 
-                                const std::string& camera_params_csv, 
-                                const std::vector<std::string>& request_image_names, 
-                                std::function<void(const int, const std::string&)> complete_callback);
+    void HandoverRequestProcess (
+        const std::string& area_name,
+        const std::string& camera_model_name,
+        const std::string& camera_params_csv,
+        const std::vector<std::string>& request_image_names,
+        std::function<void ( const int, const std::string& ) > complete_callback );
 private:
 
     // ############## Functions for setup.
@@ -82,7 +84,8 @@ private:
                      const std::vector<image_t> image_ids );
 
     // Convert vector of localization result into Json.
-    std::string ParseLocalizationResult ( const std::vector<LocalizationResult>& results );
+    std::string ParseLocalizationResult ( const std::string& area_name,
+                                          const std::vector<LocalizationResult>& results );
 
     const std::string venue_name_;
     const std::string area_name_;

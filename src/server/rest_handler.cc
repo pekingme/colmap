@@ -137,7 +137,7 @@ void RestHandler::ProcessLocalization ( const std::unordered_map<std::string, st
 
     // Localize images.
     std::shared_ptr<Localizer> localizer = localizers_.at ( venue_name ).at ( area_name );
-    localizer->HandoverRequestProcess ( camera_model_name, camera_params_csv,image_names,
+    localizer->HandoverRequestProcess ( area_name, camera_model_name, camera_params_csv,image_names,
     [response] ( const int result_code, const string& response_content ) {
         std::cout << result_code << ": " << response_content << std::endl;
         if ( result_code == EXIT_FAILURE ) {
