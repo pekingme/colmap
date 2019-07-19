@@ -41,8 +41,10 @@ namespace colmap
     
 void LogTestingData(const std::string& data){
     std::ofstream outfile;
-    outfile.open("~/Desktop/testing_data.txt",std::ios_base::app);
+    outfile.open("/home/haodong/Desktop/testing_data.txt",std::ios_base::app);
     outfile << data << std::endl;
+    std::cout << data << std::endl;
+    outfile.flush();
     outfile.close();
 }
     
